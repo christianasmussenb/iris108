@@ -7,8 +7,8 @@ kpis:
     allowed_grains: ["day"]
     source:
       type: "cube"
-      cube_id: "FactInvoice"
-      measure: "Fact Count"
+      cube_id: "SISS"
+      measure: "%COUNT"
 
     allow:
       group_by: ["pagador", "centro"]
@@ -24,8 +24,8 @@ kpis:
     allowed_grains: ["day"]
     source:
       type: "cube"
-      cube_id: "FactInvoice"
-      measure: "Total Facturado"
+      cube_id: "SISS"
+      measure: "TotalFacturado"
 
     allow:
       group_by: ["pagador", "centro"]
@@ -41,8 +41,8 @@ kpis:
     allowed_grains: ["day"]
     source:
       type: "cube"
-      cube_id: "FactInvoice"
-      measure: "Total Radicado"
+      cube_id: "SISS"
+      measure: "TotalRadicado"
 
     allow:
       group_by: ["pagador", "centro"]
@@ -58,8 +58,8 @@ kpis:
     allowed_grains: ["day"]
     source:
       type: "cube"
-      cube_id: "FactInvoice"
-      measure: "Total Impuesto"
+      cube_id: "SISS"
+      measure: "TotalImpuesto"
 
     allow:
       group_by: ["pagador", "centro"]
@@ -75,8 +75,8 @@ kpis:
     allowed_grains: ["day"]
     source:
       type: "cube"
-      cube_id: "FactInvoice"
-      measure: "Total Copago"
+      cube_id: "SISS"
+      measure: "TotalCopago"
 
     allow:
       group_by: ["pagador", "centro"]
@@ -92,8 +92,8 @@ kpis:
     allowed_grains: ["day"]
     source:
       type: "cube"
-      cube_id: "FactInvoice"
-      measure: "Total R60"
+      cube_id: "SISS"
+      measure: "TotalR60"
 
     allow:
       group_by: ["pagador", "centro"]
@@ -109,8 +109,8 @@ kpis:
     allowed_grains: ["day"]
     source:
       type: "cube"
-      cube_id: "FactInvoice"
-      measure: "Total Cartera"
+      cube_id: "SISS"
+      measure: "TotalCartera"
 
     allow:
       group_by: ["pagador", "centro"]
@@ -126,8 +126,8 @@ kpis:
     allowed_grains: ["day"]
     source:
       type: "cube"
-      cube_id: "FactInvoice"
-      measure: "Glosa Eventos"
+      cube_id: "SISS"
+      measure: "GlosaEventos"
 
     allow:
       group_by: ["pagador", "centro"]
@@ -143,8 +143,8 @@ kpis:
     allowed_grains: ["day"]
     source:
       type: "cube"
-      cube_id: "FactInvoice"
-      measure: "Glosa Kostr"
+      cube_id: "SISS"
+      measure: "GlosaKostr"
 
     allow:
       group_by: ["pagador", "centro"]

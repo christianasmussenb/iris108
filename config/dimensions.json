@@ -1,0 +1,22 @@
+{
+  "dimensions": {
+    "pagador": {
+      "type": "string",
+      "description": "Pagador (KUNRG)",
+      "allowed_ops": [
+        "eq",
+        "in",
+        "nin"
+      ]
+    },
+    "centro": {
+      "type": "string",
+      "description": "Centro (ISHKOSTR)",
+      "allowed_ops": [
+        "eq",
+        "in",
+        "nin"
+      ]
+    }
+  }
+}

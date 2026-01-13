@@ -1,0 +1,238 @@
+{
+  "kpis": {
+    "fact_count": {
+      "name": "Cantidad de facturas",
+      "unit": "count",
+      "default_grain": "day",
+      "allowed_grains": [
+        "day"
+      ],
+      "source": {
+        "type": "cube",
+        "cube_id": "SISS",
+        "measure": "%COUNT"
+      },
+      "allow": {
+        "group_by": [
+          "pagador",
+          "centro"
+        ],
+        "filters": [
+          "pagador",
+          "centro"
+        ]
+      },
+      "mdx_templates": {
+        "day": "FACTINV_FACT_COUNT_BY_DAY"
+      }
+    },
+    "total_facturado": {
+      "name": "Total facturado",
+      "unit": "currency",
+      "default_grain": "day",
+      "allowed_grains": [
+        "day"
+      ],
+      "source": {
+        "type": "cube",
+        "cube_id": "SISS",
+        "measure": "TotalFacturado"
+      },
+      "allow": {
+        "group_by": [
+          "pagador",
+          "centro"
+        ],
+        "filters": [
+          "pagador",
+          "centro"
+        ]
+      },
+      "mdx_templates": {
+        "day": "FACTINV_TOTAL_FACTURADO_BY_DAY"
+      }
+    },
+    "total_radicado": {
+      "name": "Total radicado",
+      "unit": "currency",
+      "default_grain": "day",
+      "allowed_grains": [
+        "day"
+      ],
+      "source": {
+        "type": "cube",
+        "cube_id": "SISS",
+        "measure": "TotalRadicado"
+      },
+      "allow": {
+        "group_by": [
+          "pagador",
+          "centro"
+        ],
+        "filters": [
+          "pagador",
+          "centro"
+        ]
+      },
+      "mdx_templates": {
+        "day": "FACTINV_TOTAL_RADICADO_BY_DAY"
+      }
+    },
+    "total_impuesto": {
+      "name": "Total impuesto",
+      "unit": "currency",
+      "default_grain": "day",
+      "allowed_grains": [
+        "day"
+      ],
+      "source": {
+        "type": "cube",
+        "cube_id": "SISS",
+        "measure": "TotalImpuesto"
+      },
+      "allow": {
+        "group_by": [
+          "pagador",
+          "centro"
+        ],
+        "filters": [
+          "pagador",
+          "centro"
+        ]
+      },
+      "mdx_templates": {
+        "day": "FACTINV_TOTAL_IMPUESTO_BY_DAY"
+      }
+    },
+    "total_copago": {
+      "name": "Total copago",
+      "unit": "currency",
+      "default_grain": "day",
+      "allowed_grains": [
+        "day"
+      ],
+      "source": {
+        "type": "cube",
+        "cube_id": "SISS",
+        "measure": "TotalCopago"
+      },
+      "allow": {
+        "group_by": [
+          "pagador",
+          "centro"
+        ],
+        "filters": [
+          "pagador",
+          "centro"
+        ]
+      },
+      "mdx_templates": {
+        "day": "FACTINV_TOTAL_COPAGO_BY_DAY"
+      }
+    },
+    "total_r60": {
+      "name": "Total R60",
+      "unit": "currency",
+      "default_grain": "day",
+      "allowed_grains": [
+        "day"
+      ],
+      "source": {
+        "type": "cube",
+        "cube_id": "SISS",
+        "measure": "TotalR60"
+      },
+      "allow": {
+        "group_by": [
+          "pagador",
+          "centro"
+        ],
+        "filters": [
+          "pagador",
+          "centro"
+        ]
+      },
+      "mdx_templates": {
+        "day": "FACTINV_TOTAL_R60_BY_DAY"
+      }
+    },
+    "total_cartera": {
+      "name": "Total cartera",
+      "unit": "currency",
+      "default_grain": "day",
+      "allowed_grains": [
+        "day"
+      ],
+      "source": {
+        "type": "cube",
+        "cube_id": "SISS",
+        "measure": "TotalCartera"
+      },
+      "allow": {
+        "group_by": [
+          "pagador",
+          "centro"
+        ],
+        "filters": [
+          "pagador",
+          "centro"
+        ]
+      },
+      "mdx_templates": {
+        "day": "FACTINV_TOTAL_CARTERA_BY_DAY"
+      }
+    },
+    "glosa_eventos": {
+      "name": "Glosa eventos",
+      "unit": "count",
+      "default_grain": "day",
+      "allowed_grains": [
+        "day"
+      ],
+      "source": {
+        "type": "cube",
+        "cube_id": "SISS",
+        "measure": "GlosaEventos"
+      },
+      "allow": {
+        "group_by": [
+          "pagador",
+          "centro"
+        ],
+        "filters": [
+          "pagador",
+          "centro"
+        ]
+      },
+      "mdx_templates": {
+        "day": "FACTINV_GLOSA_EVENTOS_BY_DAY"
+      }
+    },
+    "glosa_kostr": {
+      "name": "Glosa Kostr",
+      "unit": "count",
+      "default_grain": "day",
+      "allowed_grains": [
+        "day"
+      ],
+      "source": {
+        "type": "cube",
+        "cube_id": "SISS",
+        "measure": "GlosaKostr"
+      },
+      "allow": {
+        "group_by": [
+          "pagador",
+          "centro"
+        ],
+        "filters": [
+          "pagador",
+          "centro"
+        ]
+      },
+      "mdx_templates": {
+        "day": "FACTINV_GLOSA_KOSTR_BY_DAY"
+      }
+    }
+  }
+}

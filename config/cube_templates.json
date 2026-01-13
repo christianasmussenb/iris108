@@ -1,0 +1,283 @@
+{
+  "templates": {
+    "FACTINV_FACT_COUNT_BY_DAY": {
+      "cube_id": "SISS",
+      "description": "Cantidad de facturas por dia, opcionalmente agrupado y filtrado",
+      "bi_rest_endpoint": "/Data/MDXExecute",
+      "params": {
+        "from": {
+          "type": "date",
+          "required": true
+        },
+        "to": {
+          "type": "date",
+          "required": true
+        },
+        "group_by": {
+          "type": "string_array",
+          "required": false,
+          "max_items": 2
+        },
+        "filters": {
+          "type": "filter_array",
+          "required": false
+        },
+        "limit": {
+          "type": "int",
+          "required": false,
+          "default": 200,
+          "max": 5000
+        }
+      },
+      "mdx": "SELECT\n  { [Measures].[%COUNT] } ON 0,\n  NON EMPTY {{ROW_AXIS}} ON 1\nFROM [SISS]\nWHERE ( {{WHERE_SLICERS}} )\n"
+    },
+    "FACTINV_TOTAL_FACTURADO_BY_DAY": {
+      "cube_id": "SISS",
+      "description": "Total facturado por dia, opcionalmente agrupado y filtrado",
+      "bi_rest_endpoint": "/Data/MDXExecute",
+      "params": {
+        "from": {
+          "type": "date",
+          "required": true
+        },
+        "to": {
+          "type": "date",
+          "required": true
+        },
+        "group_by": {
+          "type": "string_array",
+          "required": false,
+          "max_items": 2
+        },
+        "filters": {
+          "type": "filter_array",
+          "required": false
+        },
+        "limit": {
+          "type": "int",
+          "required": false,
+          "default": 200,
+          "max": 5000
+        }
+      },
+      "mdx": "SELECT\n  { [Measures].[TotalFacturado] } ON 0,\n  NON EMPTY {{ROW_AXIS}} ON 1\nFROM [SISS]\nWHERE ( {{WHERE_SLICERS}} )\n"
+    },
+    "FACTINV_TOTAL_RADICADO_BY_DAY": {
+      "cube_id": "SISS",
+      "description": "Total radicado por dia, opcionalmente agrupado y filtrado",
+      "bi_rest_endpoint": "/Data/MDXExecute",
+      "params": {
+        "from": {
+          "type": "date",
+          "required": true
+        },
+        "to": {
+          "type": "date",
+          "required": true
+        },
+        "group_by": {
+          "type": "string_array",
+          "required": false,
+          "max_items": 2
+        },
+        "filters": {
+          "type": "filter_array",
+          "required": false
+        },
+        "limit": {
+          "type": "int",
+          "required": false,
+          "default": 200,
+          "max": 5000
+        }
+      },
+      "mdx": "SELECT\n  { [Measures].[TotalRadicado] } ON 0,\n  NON EMPTY {{ROW_AXIS}} ON 1\nFROM [SISS]\nWHERE ( {{WHERE_SLICERS}} )\n"
+    },
+    "FACTINV_TOTAL_IMPUESTO_BY_DAY": {
+      "cube_id": "SISS",
+      "description": "Total impuesto por dia, opcionalmente agrupado y filtrado",
+      "bi_rest_endpoint": "/Data/MDXExecute",
+      "params": {
+        "from": {
+          "type": "date",
+          "required": true
+        },
+        "to": {
+          "type": "date",
+          "required": true
+        },
+        "group_by": {
+          "type": "string_array",
+          "required": false,
+          "max_items": 2
+        },
+        "filters": {
+          "type": "filter_array",
+          "required": false
+        },
+        "limit": {
+          "type": "int",
+          "required": false,
+          "default": 200,
+          "max": 5000
+        }
+      },
+      "mdx": "SELECT\n  { [Measures].[TotalImpuesto] } ON 0,\n  NON EMPTY {{ROW_AXIS}} ON 1\nFROM [SISS]\nWHERE ( {{WHERE_SLICERS}} )\n"
+    },
+    "FACTINV_TOTAL_COPAGO_BY_DAY": {
+      "cube_id": "SISS",
+      "description": "Total copago por dia, opcionalmente agrupado y filtrado",
+      "bi_rest_endpoint": "/Data/MDXExecute",
+      "params": {
+        "from": {
+          "type": "date",
+          "required": true
+        },
+        "to": {
+          "type": "date",
+          "required": true
+        },
+        "group_by": {
+          "type": "string_array",
+          "required": false,
+          "max_items": 2
+        },
+        "filters": {
+          "type": "filter_array",
+          "required": false
+        },
+        "limit": {
+          "type": "int",
+          "required": false,
+          "default": 200,
+          "max": 5000
+        }
+      },
+      "mdx": "SELECT\n  { [Measures].[TotalCopago] } ON 0,\n  NON EMPTY {{ROW_AXIS}} ON 1\nFROM [SISS]\nWHERE ( {{WHERE_SLICERS}} )\n"
+    },
+    "FACTINV_TOTAL_R60_BY_DAY": {
+      "cube_id": "SISS",
+      "description": "Total R60 por dia, opcionalmente agrupado y filtrado",
+      "bi_rest_endpoint": "/Data/MDXExecute",
+      "params": {
+        "from": {
+          "type": "date",
+          "required": true
+        },
+        "to": {
+          "type": "date",
+          "required": true
+        },
+        "group_by": {
+          "type": "string_array",
+          "required": false,
+          "max_items": 2
+        },
+        "filters": {
+          "type": "filter_array",
+          "required": false
+        },
+        "limit": {
+          "type": "int",
+          "required": false,
+          "default": 200,
+          "max": 5000
+        }
+      },
+      "mdx": "SELECT\n  { [Measures].[TotalR60] } ON 0,\n  NON EMPTY {{ROW_AXIS}} ON 1\nFROM [SISS]\nWHERE ( {{WHERE_SLICERS}} )\n"
+    },
+    "FACTINV_TOTAL_CARTERA_BY_DAY": {
+      "cube_id": "SISS",
+      "description": "Total cartera por dia, opcionalmente agrupado y filtrado",
+      "bi_rest_endpoint": "/Data/MDXExecute",
+      "params": {
+        "from": {
+          "type": "date",
+          "required": true
+        },
+        "to": {
+          "type": "date",
+          "required": true
+        },
+        "group_by": {
+          "type": "string_array",
+          "required": false,
+          "max_items": 2
+        },
+        "filters": {
+          "type": "filter_array",
+          "required": false
+        },
+        "limit": {
+          "type": "int",
+          "required": false,
+          "default": 200,
+          "max": 5000
+        }
+      },
+      "mdx": "SELECT\n  { [Measures].[TotalCartera] } ON 0,\n  NON EMPTY {{ROW_AXIS}} ON 1\nFROM [SISS]\nWHERE ( {{WHERE_SLICERS}} )\n"
+    },
+    "FACTINV_GLOSA_EVENTOS_BY_DAY": {
+      "cube_id": "SISS",
+      "description": "Glosa eventos por dia, opcionalmente agrupado y filtrado",
+      "bi_rest_endpoint": "/Data/MDXExecute",
+      "params": {
+        "from": {
+          "type": "date",
+          "required": true
+        },
+        "to": {
+          "type": "date",
+          "required": true
+        },
+        "group_by": {
+          "type": "string_array",
+          "required": false,
+          "max_items": 2
+        },
+        "filters": {
+          "type": "filter_array",
+          "required": false
+        },
+        "limit": {
+          "type": "int",
+          "required": false,
+          "default": 200,
+          "max": 5000
+        }
+      },
+      "mdx": "SELECT\n  { [Measures].[GlosaEventos] } ON 0,\n  NON EMPTY {{ROW_AXIS}} ON 1\nFROM [SISS]\nWHERE ( {{WHERE_SLICERS}} )\n"
+    },
+    "FACTINV_GLOSA_KOSTR_BY_DAY": {
+      "cube_id": "SISS",
+      "description": "Glosa Kostr por dia, opcionalmente agrupado y filtrado",
+      "bi_rest_endpoint": "/Data/MDXExecute",
+      "params": {
+        "from": {
+          "type": "date",
+          "required": true
+        },
+        "to": {
+          "type": "date",
+          "required": true
+        },
+        "group_by": {
+          "type": "string_array",
+          "required": false,
+          "max_items": 2
+        },
+        "filters": {
+          "type": "filter_array",
+          "required": false
+        },
+        "limit": {
+          "type": "int",
+          "required": false,
+          "default": 200,
+          "max": 5000
+        }
+      },
+      "mdx": "SELECT\n  { [Measures].[GlosaKostr] } ON 0,\n  NON EMPTY {{ROW_AXIS}} ON 1\nFROM [SISS]\nWHERE ( {{WHERE_SLICERS}} )\n"
+    }
+  }
+}

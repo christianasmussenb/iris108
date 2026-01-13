@@ -1,7 +1,7 @@
 templates:
 
   FACTINV_FACT_COUNT_BY_DAY:
-    cube_id: "FactInvoice"
+    cube_id: "SISS"
     description: "Cantidad de facturas por dia, opcionalmente agrupado y filtrado"
     bi_rest_endpoint: "/Data/MDXExecute"
     params:
@@ -13,13 +13,13 @@ templates:
 
     mdx: |
       SELECT
-        { [Measures].[Fact Count] } ON 0,
+        { [Measures].[%COUNT] } ON 0,
         NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FactInvoice]
+      FROM [SISS]
       WHERE ( {{WHERE_SLICERS}} )
 
   FACTINV_TOTAL_FACTURADO_BY_DAY:
-    cube_id: "FactInvoice"
+    cube_id: "SISS"
     description: "Total facturado por dia, opcionalmente agrupado y filtrado"
     bi_rest_endpoint: "/Data/MDXExecute"
     params:
@@ -31,13 +31,13 @@ templates:
 
     mdx: |
       SELECT
-        { [Measures].[Total Facturado] } ON 0,
+        { [Measures].[TotalFacturado] } ON 0,
         NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FactInvoice]
+      FROM [SISS]
       WHERE ( {{WHERE_SLICERS}} )
 
   FACTINV_TOTAL_RADICADO_BY_DAY:
-    cube_id: "FactInvoice"
+    cube_id: "SISS"
     description: "Total radicado por dia, opcionalmente agrupado y filtrado"
     bi_rest_endpoint: "/Data/MDXExecute"
     params:
@@ -49,13 +49,13 @@ templates:
 
     mdx: |
       SELECT
-        { [Measures].[Total Radicado] } ON 0,
+        { [Measures].[TotalRadicado] } ON 0,
         NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FactInvoice]
+      FROM [SISS]
       WHERE ( {{WHERE_SLICERS}} )
 
   FACTINV_TOTAL_IMPUESTO_BY_DAY:
-    cube_id: "FactInvoice"
+    cube_id: "SISS"
     description: "Total impuesto por dia, opcionalmente agrupado y filtrado"
     bi_rest_endpoint: "/Data/MDXExecute"
     params:
@@ -67,13 +67,13 @@ templates:
 
     mdx: |
       SELECT
-        { [Measures].[Total Impuesto] } ON 0,
+        { [Measures].[TotalImpuesto] } ON 0,
         NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FactInvoice]
+      FROM [SISS]
       WHERE ( {{WHERE_SLICERS}} )
 
   FACTINV_TOTAL_COPAGO_BY_DAY:
-    cube_id: "FactInvoice"
+    cube_id: "SISS"
     description: "Total copago por dia, opcionalmente agrupado y filtrado"
     bi_rest_endpoint: "/Data/MDXExecute"
     params:
@@ -85,13 +85,13 @@ templates:
 
     mdx: |
       SELECT
-        { [Measures].[Total Copago] } ON 0,
+        { [Measures].[TotalCopago] } ON 0,
         NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FactInvoice]
+      FROM [SISS]
       WHERE ( {{WHERE_SLICERS}} )
 
   FACTINV_TOTAL_R60_BY_DAY:
-    cube_id: "FactInvoice"
+    cube_id: "SISS"
     description: "Total R60 por dia, opcionalmente agrupado y filtrado"
     bi_rest_endpoint: "/Data/MDXExecute"
     params:
@@ -103,13 +103,13 @@ templates:
 
     mdx: |
       SELECT
-        { [Measures].[Total R60] } ON 0,
+        { [Measures].[TotalR60] } ON 0,
         NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FactInvoice]
+      FROM [SISS]
       WHERE ( {{WHERE_SLICERS}} )
 
   FACTINV_TOTAL_CARTERA_BY_DAY:
-    cube_id: "FactInvoice"
+    cube_id: "SISS"
     description: "Total cartera por dia, opcionalmente agrupado y filtrado"
     bi_rest_endpoint: "/Data/MDXExecute"
     params:
@@ -121,13 +121,13 @@ templates:
 
     mdx: |
       SELECT
-        { [Measures].[Total Cartera] } ON 0,
+        { [Measures].[TotalCartera] } ON 0,
         NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FactInvoice]
+      FROM [SISS]
       WHERE ( {{WHERE_SLICERS}} )
 
   FACTINV_GLOSA_EVENTOS_BY_DAY:
-    cube_id: "FactInvoice"
+    cube_id: "SISS"
     description: "Glosa eventos por dia, opcionalmente agrupado y filtrado"
     bi_rest_endpoint: "/Data/MDXExecute"
     params:
@@ -139,13 +139,13 @@ templates:
 
     mdx: |
       SELECT
-        { [Measures].[Glosa Eventos] } ON 0,
+        { [Measures].[GlosaEventos] } ON 0,
         NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FactInvoice]
+      FROM [SISS]
       WHERE ( {{WHERE_SLICERS}} )
 
   FACTINV_GLOSA_KOSTR_BY_DAY:
-    cube_id: "FactInvoice"
+    cube_id: "SISS"
     description: "Glosa Kostr por dia, opcionalmente agrupado y filtrado"
     bi_rest_endpoint: "/Data/MDXExecute"
     params:
@@ -157,7 +157,7 @@ templates:
 
     mdx: |
       SELECT
-        { [Measures].[Glosa Kostr] } ON 0,
+        { [Measures].[GlosaKostr] } ON 0,
         NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FactInvoice]
+      FROM [SISS]
       WHERE ( {{WHERE_SLICERS}} )

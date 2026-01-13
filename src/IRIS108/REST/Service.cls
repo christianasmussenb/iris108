@@ -6,12 +6,34 @@ Class IRIS108.REST.Service Extends %CSP.REST
 XData UrlMap
 {
 <Routes>
+  <Route Url="/ping" Method="GET" Call="Ping" />
   <Route Url="/capabilities" Method="GET" Call="GetCapabilities" />
   <Route Url="/kpi/explain" Method="POST" Call="ExplainKpi" />
   <Route Url="/kpi/query" Method="POST" Call="QueryKpi" />
   <Route Url="/cube/query" Method="POST" Call="QueryCube" />
   <Route Url="/dq/status" Method="POST" Call="DqStatus" />
 </Routes>
+}
+
+ClassMethod Ping() As %Status
+{
+  Set response = ##class(%DynamicObject).%New()
+  Do response.%Set("ok", 1)
+  Do response.%Set("service", "IRIS108.REST.Service")
+  Do ..WriteJson(200, response)
+  Quit $$$OK
+}
+
+Method OnError() As %Status
+{
+  Set response = ##class(%DynamicObject).%New()
+  Do response.%Set("error", "internal_error")
+  Do response.%Set("message", $ZERROR)
+  Do response.%Set("status", $SYSTEM.Status.GetErrorText($ZSTATUS))
+  Do %response.SetStatus(500)
+  Do %response.SetHeader("Content-Type", "application/json")
+  Do %response.Write(response.%ToJSON())
+  Quit $$$OK
 }
 
 ClassMethod GetCapabilities() As %Status
@@ -348,12 +370,16 @@ ClassMethod Contains(list As %DynamicArray, value As %String) As %Boolean
 {
   If '$IsObject(list) Quit 0
   Set i = 0
+  Set found = 0
   For {
     Set i = i + 1
     If i > list.%Size() Quit
-    If list.%Get(i) = value Quit 1
+    If list.%Get(i) = value {
+      Set found = 1
+      Quit
+    }
   }
-  Quit 0
+  Quit found
 }
 
 ClassMethod BuildMdx(template As %String, fromYMD As %String, toYMD As %String, groupBy As %DynamicArray, filters As %DynamicArray, limit As %Integer) As %String
@@ -410,7 +436,7 @@ ClassMethod BuildMdx(template As %String, fromYMD As %String, toYMD As %String, 
 
 ClassMethod DimMembers(key As %String) As %String
 {
-  If key = "pagador" Quit "[Pagador].[H1].[KUNRG].Members"
+  If key = "pagador" Quit "[Pagador].[H1].[KUNGR].Members"
   If key = "centro" Quit "[Centro].[H1].[ISHKOSTR].Members"
   Quit ""
 }
@@ -421,7 +447,7 @@ ClassMethod BuildFilterSlicer(filter As %DynamicObject) As %String
   Set op = $Get(filter.%Get("op"), "")
   Set value = filter.%Get("value")
   Set level = ""
-  If field = "pagador" Set level = "[Pagador].[H1].[KUNRG]"
+  If field = "pagador" Set level = "[Pagador].[H1].[KUNGR]"
   If field = "centro" Set level = "[Centro].[H1].[ISHKOSTR]"
   If level = "" Quit ""
 

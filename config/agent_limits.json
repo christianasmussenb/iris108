@@ -1,0 +1,26 @@
+{
+  "version": "1.0.0",
+  "api": {
+    "base_path": "/api/gpt/v1",
+    "auth": {
+      "header_name": "X-API-Key"
+    }
+  },
+  "limits": {
+    "max_date_range_days": 400,
+    "max_rows_default": 200,
+    "max_rows_hard": 5000,
+    "max_group_by": 3,
+    "allowed_grains": [
+      "day"
+    ]
+  },
+  "response_contract": {
+    "always_include": [
+      "correlation_id",
+      "metadata.executed_at",
+      "metadata.execution_ms",
+      "metadata.as_of_cutoff"
+    ]
+  }
+}
