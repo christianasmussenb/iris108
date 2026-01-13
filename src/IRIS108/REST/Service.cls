@@ -1,6 +1,7 @@
+Include %occStatus
+
 Class IRIS108.REST.Service Extends %CSP.REST
 {
-Include %occStatus
 
 XData UrlMap
 {
@@ -242,13 +243,14 @@ ClassMethod ReadJsonBody(ByRef req As %DynamicObject) As %Status
   Set tStream = %request.Content
   If tStream = "" Quit ..WriteError(400, "invalid_request", "body requerido")
   Set tJson = tStream.Read()
+  Set sc = $$$OK
   Try {
     Set req = ##class(%DynamicObject).%FromJSON(tJson)
   } Catch ex {
     Do ..WriteError(400, "invalid_json", "body no es JSON valido")
-    Quit $$$ERROR(400)
+    Set sc = $$$ERROR(400)
   }
-  Quit $$$OK
+  Quit sc
 }
 
 ClassMethod ParseDate(pValue As %String, ByRef ymd As %String, ByRef hDate As %Date) As %Status
@@ -269,13 +271,21 @@ ClassMethod ValidateGroupBy(groupBy As %DynamicArray, kpi As %DynamicObject) As 
   If '$IsObject(allowed) Quit ..WriteError(400, "invalid_request", "group_by no permitido")
 
   Set i = 0
+  Set sc = $$$OK
   For {
     Set i = i + 1
     If i > groupBy.%Size() Quit
     Set key = groupBy.%Get(i)
-    If key = "" Quit ..WriteError(400, "invalid_request", "group_by vacio")
-    If ' ..Contains(allowed, key) Quit ..WriteError(400, "invalid_request", "group_by no permitido")
+    If key = "" {
+      Set sc = ..WriteError(400, "invalid_request", "group_by vacio")
+      Quit
+    }
+    If ' ..Contains(allowed, key) {
+      Set sc = ..WriteError(400, "invalid_request", "group_by no permitido")
+      Quit
+    }
   }
+  If $$$ISERR(sc) Quit sc
   Quit $$$OK
 }
 
@@ -291,23 +301,46 @@ ClassMethod ValidateFilters(filters As %DynamicArray, kpi As %DynamicObject, dim
   Set dimsMap = dims.%Get("dimensions")
 
   Set i = 0
+  Set sc = $$$OK
   For {
     Set i = i + 1
     If i > filters.%Size() Quit
     Set f = filters.%Get(i)
-    If '$IsObject(f) Quit ..WriteError(400, "invalid_request", "filter invalido")
+    If '$IsObject(f) {
+      Set sc = ..WriteError(400, "invalid_request", "filter invalido")
+      Quit
+    }
     Set field = $Get(f.%Get("field"), "")
-    If field = "" Quit ..WriteError(400, "invalid_request", "filter.field requerido")
-    If ' ..Contains(allowed, field) Quit ..WriteError(400, "invalid_request", "filter.field no permitido")
+    If field = "" {
+      Set sc = ..WriteError(400, "invalid_request", "filter.field requerido")
+      Quit
+    }
+    If ' ..Contains(allowed, field) {
+      Set sc = ..WriteError(400, "invalid_request", "filter.field no permitido")
+      Quit
+    }
     Set dim = ""
     If $IsObject(dimsMap) Set dim = dimsMap.%Get(field)
-    If '$IsObject(dim) Quit ..WriteError(400, "invalid_request", "dimension no registrada")
+    If '$IsObject(dim) {
+      Set sc = ..WriteError(400, "invalid_request", "dimension no registrada")
+      Quit
+    }
     Set op = $Get(f.%Get("op"), "")
-    If op = "" Quit ..WriteError(400, "invalid_request", "filter.op requerido")
+    If op = "" {
+      Set sc = ..WriteError(400, "invalid_request", "filter.op requerido")
+      Quit
+    }
     Set allowedOps = dim.%Get("allowed_ops")
-    If '$IsObject(allowedOps) Quit ..WriteError(400, "invalid_request", "filter.op no permitido")
-    If ' ..Contains(allowedOps, op) Quit ..WriteError(400, "invalid_request", "filter.op no permitido")
+    If '$IsObject(allowedOps) {
+      Set sc = ..WriteError(400, "invalid_request", "filter.op no permitido")
+      Quit
+    }
+    If ' ..Contains(allowedOps, op) {
+      Set sc = ..WriteError(400, "invalid_request", "filter.op no permitido")
+      Quit
+    }
   }
+  If $$$ISERR(sc) Quit sc
   Quit $$$OK
 }
 
@@ -327,6 +360,7 @@ ClassMethod BuildMdx(template As %String, fromYMD As %String, toYMD As %String, 
 {
   Set dateSet = "[FechaFactura].[H1].[FKDAT].&["_fromYMD_"] : [FechaFactura].[H1].[FKDAT].&["_toYMD_"]"
   Set rowAxis = dateSet
+  Set buildOk = 1
 
   If $IsObject(groupBy) {
     Set i = 0
@@ -334,9 +368,13 @@ ClassMethod BuildMdx(template As %String, fromYMD As %String, toYMD As %String, 
       Set i = i + 1
       If i > groupBy.%Size() Quit
       Set dim = ..DimMembers(groupBy.%Get(i))
-      If dim = "" Quit ""
+      If dim = "" {
+        Set buildOk = 0
+        Quit
+      }
       Set rowAxis = "CROSSJOIN("_rowAxis_","_dim_")"
     }
+    If 'buildOk Quit ""
   }
 
   If limit > 0 {
@@ -351,10 +389,14 @@ ClassMethod BuildMdx(template As %String, fromYMD As %String, toYMD As %String, 
       If i > filters.%Size() Quit
       Set f = filters.%Get(i)
       Set slicer = ..BuildFilterSlicer(f)
-      If slicer = "" Quit ""
+      If slicer = "" {
+        Set buildOk = 0
+        Quit
+      }
       If slicers'="" Set slicers = slicers_", "
       Set slicers = slicers_slicer
     }
+    If 'buildOk Quit ""
   }
 
   Set mdx = $Replace(template, "{{ROW_AXIS}}", rowAxis)
@@ -398,17 +440,19 @@ ClassMethod BuildFilterSlicer(filter As %DynamicObject) As %String
 
 ClassMethod BuildMemberSet(level As %String, value) As %String
 {
-  If $IsObject(value) && $IsA(value, "%DynamicArray") {
-    Set i = 0
-    Set set = "{"
-    For {
-      Set i = i + 1
-      If i > value.%Size() Quit
-      If i > 1 Set set = set_","
-      Set set = set_level_".&["_..EscapeKey(value.%Get(i))_"]"
+  If $IsObject(value) {
+    If value.%IsA("%DynamicArray") {
+      Set i = 0
+      Set set = "{"
+      For {
+        Set i = i + 1
+        If i > value.%Size() Quit
+        If i > 1 Set set = set_","
+        Set set = set_level_".&["_..EscapeKey(value.%Get(i))_"]"
+      }
+      Set set = set_"}"
+      Quit set
     }
-    Set set = set_"}"
-    Quit set
   }
   Quit "{"_level_".&["_..EscapeKey(value)_"]}"
 }
@@ -448,8 +492,9 @@ ClassMethod ExecuteMdx(endpoint As %String, mdx As %String, ByRef responseObj As
     Set responseObj = ##class(%DynamicObject).%FromJSON(raw)
   } Catch ex {
     Do ..WriteError(502, "bi_invalid_response", "Respuesta BI no es JSON valido")
-    Quit $$$ERROR(502)
+    Set sc = $$$ERROR(502)
   }
+  If $$$ISERR(sc) Quit sc
   Quit $$$OK
 }
 
