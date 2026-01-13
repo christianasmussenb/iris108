@@ -77,6 +77,25 @@ The solution exposes a small, **governed REST API** hosted **inside InterSystems
   - call Actions for any numeric claim,
   - ask for clarification if the user request is ambiguous,
   - never assume data availability without a successful API response.
+
+## Estado actual (MLTEST)
+- Cubo activo: `SISS` (SISS.BI.FactInvoiceCube).
+- BI UI verificado en: `/csp/mltest/_DeepSee.UI.Analyzer.zen` y `/csp/mltest/_DeepSee.UI.MDXQuery.zen`.
+- Configuración cargada desde globals cuando no existe `%SYS.YAML`.
+- Web App REST: `/csp/iris108` con `IRIS108.REST.Service` (requiere recarga del Web Gateway si da 500 HTML).
+
+## Configuración sin %SYS.YAML
+Si `%SYS.YAML` no está disponible, la carga de configuración usa globals:
+- `^IRIS108.ConfigData("agent_limits","json")`
+- `^IRIS108.ConfigData("dimensions","json")`
+- `^IRIS108.ConfigData("kpi_registry","json")`
+- `^IRIS108.ConfigData("cube_templates","json")`
+
+## Aprendizajes clave
+- El Web Gateway puede seguir devolviendo 500 HTML aun con la clase compilada; requiere recarga/configuración del Gateway.
+- En este entorno, `%SYS.YAML` no está disponible; se usa JSON en globals como fallback.
+- El cubo operativo es `SISS`, y las medidas en MDX deben usar los nombres internos sin espacios (p.ej. `TotalFacturado`).
+- El editor de Actions exige HTTPS y `servers.url` bajo el mismo origen.
 ```
 # Implementación "codex-ready" para IRIS + ChatGPT Actions
 **codex-ready**: archivos de configuración + reglas de validación + mapeos KPI→(cubo/MDX template) + checklist de implementación en IRIS + notas exactas para configurar Actions con **API Key en el editor** (sin meter la key en el OpenAPI). Todo está alineado con lo documentado por **OpenAI Actions** y **InterSystems IRIS REST + BI REST (MDXExecute/PivotExecute)**. ([Plataforma OpenAI][1])
@@ -92,9 +111,7 @@ The solution exposes a small, **governed REST API** hosted **inside InterSystems
 
 ---
 
-## 1) Archivo `config/agent_limits.yaml`
-
-(Esto lo ocupa el endpoint `/capabilities` y la validación server-side.)
+## 1) Archivo `config/agent_limits.yaml` (MVP actual)
 
 ```yaml
 version: "1.0.0"
@@ -108,7 +125,7 @@ limits:
   max_rows_default: 200
   max_rows_hard: 5000
   max_group_by: 3
-  allowed_grains: ["day", "week", "month"]
+  allowed_grains: ["day"]
 
 response_contract:
   always_include:
@@ -120,121 +137,66 @@ response_contract:
 
 ---
 
-## 2) Archivo `config/dimensions.yaml`
-
-(“Semantic layer” mínimo: tipos, descripciones y lista blanca.)
+## 2) Archivo `config/dimensions.yaml` (MVP actual)
 
 ```yaml
 dimensions:
-  aseguradora:
+  pagador:
     type: "string"
-    description: "Aseguradora/Isapre/Fonasa según catálogo interno"
+    description: "Pagador (KUNRG)"
     allowed_ops: ["eq", "in", "nin"]
-  sucursal:
+  centro:
     type: "string"
-    description: "Centro/Clínica/Sucursal"
-    allowed_ops: ["eq", "in", "nin"]
-  prestacion:
-    type: "string"
-    description: "Código prestación (arancel/convenio)"
-    allowed_ops: ["eq", "in", "nin"]
-  canal:
-    type: "string"
-    description: "Ambulatorio / Hospitalario / Urgencia (según modelo)"
-    allowed_ops: ["eq", "in", "nin"]
-  estado:
-    type: "string"
-    description: "Estado del documento (p.ej. emitida/anulada/glosada)"
+    description: "Centro (ISHKOSTR)"
     allowed_ops: ["eq", "in", "nin"]
 ```
 
 ---
 
-## 3) Archivo `config/kpi_registry.yaml`
-
-Este es el “mapa” que le impide al LLM pedir cualquier cosa.
-**Regla:** el backend sólo ejecuta KPIs registrados acá.
+## 3) Archivo `config/kpi_registry.yaml` (MVP actual)
 
 ```yaml
 kpis:
-
-  glosa_rate:
-    name: "Tasa de glosa"
-    unit: "percent"
-    default_grain: "month"
-    allowed_grains: ["day", "week", "month"]
+  fact_count:
+    name: "Cantidad de facturas"
+    unit: "count"
+    default_grain: "day"
+    allowed_grains: ["day"]
     source:
       type: "cube"
-      cube_id: "FIN_CX"
-      numerator_measure: "monto_glosado"
-      denominator_measure: "monto_facturado"
-
+      cube_id: "SISS"
+      measure: "%COUNT"
     allow:
-      group_by: ["aseguradora", "sucursal", "prestacion", "canal"]
-      filters: ["aseguradora", "sucursal", "prestacion", "canal", "estado"]
-
+      group_by: ["pagador", "centro"]
+      filters: ["pagador", "centro"]
     mdx_templates:
-      day:   "FIN_CX_GLOSA_RATE_BY_DAY"
-      week:  "FIN_CX_GLOSA_RATE_BY_WEEK"
-      month: "FIN_CX_GLOSA_RATE_BY_MONTH"
+      day: "FACTINV_FACT_COUNT_BY_DAY"
 
-    caveats:
-      - "Puede variar por corte de carga si el periodo está abierto."
-      - "Excluye anulaciones si filter.estado != 'anulada'."
-
-  recaudo_rate:
-    name: "Tasa de recaudo"
-    unit: "percent"
-    default_grain: "month"
-    allowed_grains: ["week", "month"]
+  total_facturado:
+    name: "Total facturado"
+    unit: "currency"
+    default_grain: "day"
+    allowed_grains: ["day"]
     source:
       type: "cube"
-      cube_id: "FIN_CX"
-      numerator_measure: "monto_pagado"
-      denominator_measure: "monto_facturado"
-
+      cube_id: "SISS"
+      measure: "TotalFacturado"
     allow:
-      group_by: ["aseguradora", "sucursal"]
-      filters: ["aseguradora", "sucursal", "estado"]
-
+      group_by: ["pagador", "centro"]
+      filters: ["pagador", "centro"]
     mdx_templates:
-      week:  "FIN_CX_RECAUDO_RATE_BY_WEEK"
-      month: "FIN_CX_RECAUDO_RATE_BY_MONTH"
+      day: "FACTINV_TOTAL_FACTURADO_BY_DAY"
 ```
 
 ---
 
-## 4) Archivo `config/cube_templates.yaml`
-
-Estos templates son lo único que `/cube/query` puede ejecutar.
-(Se ejecutan vía BI REST API: `/Data/MDXExecute` o `/Data/PivotExecute`, según tu decisión; ambos están documentados.) ([docs.intersystems.com][4])
+## 4) Archivo `config/cube_templates.yaml` (MVP actual)
 
 ```yaml
 templates:
-
-  FIN_CX_GLOSA_RATE_BY_MONTH:
-    cube_id: "FIN_CX"
-    description: "Tasa de glosa mensual, opcionalmente agrupado y filtrado"
-    bi_rest_endpoint: "/Data/MDXExecute"
-    params:
-      from: { type: "date", required: true }
-      to:   { type: "date", required: true }
-      group_by: { type: "string_array", required: false, max_items: 3 }
-      filters:  { type: "filter_array", required: false }
-      limit:    { type: "int", required: false, default: 200, max: 5000 }
-
-    # Nota: placeholders estilo {{param}} para sustitución controlada
-    # (server-side debe validar group_by/filters contra kpi_registry + dimensions.yaml)
-    mdx: |
-      SELECT
-        { [Measures].[monto_glosado] / NULLIF([Measures].[monto_facturado], 0) } ON 0,
-        NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FIN_CX]
-      WHERE ( {{WHERE_SLICERS}} )
-
-  FIN_CX_RECAUDO_RATE_BY_MONTH:
-    cube_id: "FIN_CX"
-    description: "Tasa de recaudo mensual"
+  FACTINV_FACT_COUNT_BY_DAY:
+    cube_id: "SISS"
+    description: "Cantidad de facturas por dia, opcionalmente agrupado y filtrado"
     bi_rest_endpoint: "/Data/MDXExecute"
     params:
       from: { type: "date", required: true }
@@ -244,9 +206,26 @@ templates:
       limit:    { type: "int", required: false, default: 200, max: 5000 }
     mdx: |
       SELECT
-        { [Measures].[monto_pagado] / NULLIF([Measures].[monto_facturado], 0) } ON 0,
+        { [Measures].[%COUNT] } ON 0,
         NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FIN_CX]
+      FROM [SISS]
+      WHERE ( {{WHERE_SLICERS}} )
+
+  FACTINV_TOTAL_FACTURADO_BY_DAY:
+    cube_id: "SISS"
+    description: "Total facturado por dia, opcionalmente agrupado y filtrado"
+    bi_rest_endpoint: "/Data/MDXExecute"
+    params:
+      from: { type: "date", required: true }
+      to:   { type: "date", required: true }
+      group_by: { type: "string_array", required: false, max_items: 2 }
+      filters:  { type: "filter_array", required: false }
+      limit:    { type: "int", required: false, default: 200, max: 5000 }
+    mdx: |
+      SELECT
+        { [Measures].[TotalFacturado] } ON 0,
+        NON EMPTY {{ROW_AXIS}} ON 1
+      FROM [SISS]
       WHERE ( {{WHERE_SLICERS}} )
 ```
 
