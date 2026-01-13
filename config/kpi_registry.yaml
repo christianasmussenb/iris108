@@ -1,0 +1,44 @@
+kpis:
+
+  glosa_rate:
+    name: "Tasa de glosa"
+    unit: "percent"
+    default_grain: "month"
+    allowed_grains: ["day", "week", "month"]
+    source:
+      type: "cube"
+      cube_id: "FIN_CX"
+      numerator_measure: "monto_glosado"
+      denominator_measure: "monto_facturado"
+
+    allow:
+      group_by: ["aseguradora", "sucursal", "prestacion", "canal"]
+      filters: ["aseguradora", "sucursal", "prestacion", "canal", "estado"]
+
+    mdx_templates:
+      day:   "FIN_CX_GLOSA_RATE_BY_DAY"
+      week:  "FIN_CX_GLOSA_RATE_BY_WEEK"
+      month: "FIN_CX_GLOSA_RATE_BY_MONTH"
+
+    caveats:
+      - "Puede variar por corte de carga si el periodo esta abierto."
+      - "Excluye anulaciones si filter.estado != 'anulada'."
+
+  recaudo_rate:
+    name: "Tasa de recaudo"
+    unit: "percent"
+    default_grain: "month"
+    allowed_grains: ["week", "month"]
+    source:
+      type: "cube"
+      cube_id: "FIN_CX"
+      numerator_measure: "monto_pagado"
+      denominator_measure: "monto_facturado"
+
+    allow:
+      group_by: ["aseguradora", "sucursal"]
+      filters: ["aseguradora", "sucursal", "estado"]
+
+    mdx_templates:
+      week:  "FIN_CX_RECAUDO_RATE_BY_WEEK"
+      month: "FIN_CX_RECAUDO_RATE_BY_MONTH"

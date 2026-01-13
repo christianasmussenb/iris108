@@ -1,0 +1,21 @@
+dimensions:
+  aseguradora:
+    type: "string"
+    description: "Aseguradora/Isapre/Fonasa segun catalogo interno"
+    allowed_ops: ["eq", "in", "nin"]
+  sucursal:
+    type: "string"
+    description: "Centro/Clinica/Sucursal"
+    allowed_ops: ["eq", "in", "nin"]
+  prestacion:
+    type: "string"
+    description: "Codigo prestacion (arancel/convenio)"
+    allowed_ops: ["eq", "in", "nin"]
+  canal:
+    type: "string"
+    description: "Ambulatorio / Hospitalario / Urgencia (segun modelo)"
+    allowed_ops: ["eq", "in", "nin"]
+  estado:
+    type: "string"
+    description: "Estado del documento (p.ej. emitida/anulada/glosada)"
+    allowed_ops: ["eq", "in", "nin"]

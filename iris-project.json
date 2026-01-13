@@ -1,0 +1,12 @@
+{
+  "objectscript": {
+    "conn": {
+      "server": "irisestandar",
+      "namespace": "MLTEST"
+    },
+    "compile": {
+      "flags": "cuk"
+    }
+  },
+  "src": "src"
+}

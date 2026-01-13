@@ -1,0 +1,89 @@
+templates:
+
+  FIN_CX_GLOSA_RATE_BY_MONTH:
+    cube_id: "FIN_CX"
+    description: "Tasa de glosa mensual, opcionalmente agrupado y filtrado"
+    bi_rest_endpoint: "/Data/MDXExecute"
+    params:
+      from: { type: "date", required: true }
+      to:   { type: "date", required: true }
+      group_by: { type: "string_array", required: false, max_items: 3 }
+      filters:  { type: "filter_array", required: false }
+      limit:    { type: "int", required: false, default: 200, max: 5000 }
+
+    mdx: |
+      SELECT
+        { [Measures].[monto_glosado] / NULLIF([Measures].[monto_facturado], 0) } ON 0,
+        NON EMPTY {{ROW_AXIS}} ON 1
+      FROM [FIN_CX]
+      WHERE ( {{WHERE_SLICERS}} )
+
+  FIN_CX_GLOSA_RATE_BY_WEEK:
+    cube_id: "FIN_CX"
+    description: "Tasa de glosa semanal, opcionalmente agrupado y filtrado"
+    bi_rest_endpoint: "/Data/MDXExecute"
+    params:
+      from: { type: "date", required: true }
+      to:   { type: "date", required: true }
+      group_by: { type: "string_array", required: false, max_items: 3 }
+      filters:  { type: "filter_array", required: false }
+      limit:    { type: "int", required: false, default: 200, max: 5000 }
+
+    mdx: |
+      SELECT
+        { [Measures].[monto_glosado] / NULLIF([Measures].[monto_facturado], 0) } ON 0,
+        NON EMPTY {{ROW_AXIS}} ON 1
+      FROM [FIN_CX]
+      WHERE ( {{WHERE_SLICERS}} )
+
+  FIN_CX_GLOSA_RATE_BY_DAY:
+    cube_id: "FIN_CX"
+    description: "Tasa de glosa diaria, opcionalmente agrupado y filtrado"
+    bi_rest_endpoint: "/Data/MDXExecute"
+    params:
+      from: { type: "date", required: true }
+      to:   { type: "date", required: true }
+      group_by: { type: "string_array", required: false, max_items: 3 }
+      filters:  { type: "filter_array", required: false }
+      limit:    { type: "int", required: false, default: 200, max: 5000 }
+
+    mdx: |
+      SELECT
+        { [Measures].[monto_glosado] / NULLIF([Measures].[monto_facturado], 0) } ON 0,
+        NON EMPTY {{ROW_AXIS}} ON 1
+      FROM [FIN_CX]
+      WHERE ( {{WHERE_SLICERS}} )
+
+  FIN_CX_RECAUDO_RATE_BY_MONTH:
+    cube_id: "FIN_CX"
+    description: "Tasa de recaudo mensual"
+    bi_rest_endpoint: "/Data/MDXExecute"
+    params:
+      from: { type: "date", required: true }
+      to:   { type: "date", required: true }
+      group_by: { type: "string_array", required: false, max_items: 2 }
+      filters:  { type: "filter_array", required: false }
+      limit:    { type: "int", required: false, default: 200, max: 5000 }
+    mdx: |
+      SELECT
+        { [Measures].[monto_pagado] / NULLIF([Measures].[monto_facturado], 0) } ON 0,
+        NON EMPTY {{ROW_AXIS}} ON 1
+      FROM [FIN_CX]
+      WHERE ( {{WHERE_SLICERS}} )
+
+  FIN_CX_RECAUDO_RATE_BY_WEEK:
+    cube_id: "FIN_CX"
+    description: "Tasa de recaudo semanal"
+    bi_rest_endpoint: "/Data/MDXExecute"
+    params:
+      from: { type: "date", required: true }
+      to:   { type: "date", required: true }
+      group_by: { type: "string_array", required: false, max_items: 2 }
+      filters:  { type: "filter_array", required: false }
+      limit:    { type: "int", required: false, default: 200, max: 5000 }
+    mdx: |
+      SELECT
+        { [Measures].[monto_pagado] / NULLIF([Measures].[monto_facturado], 0) } ON 0,
+        NON EMPTY {{ROW_AXIS}} ON 1
+      FROM [FIN_CX]
+      WHERE ( {{WHERE_SLICERS}} )
