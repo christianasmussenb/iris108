@@ -1,44 +1,154 @@
 kpis:
 
-  glosa_rate:
-    name: "Tasa de glosa"
-    unit: "percent"
-    default_grain: "month"
-    allowed_grains: ["day", "week", "month"]
+  fact_count:
+    name: "Cantidad de facturas"
+    unit: "count"
+    default_grain: "day"
+    allowed_grains: ["day"]
     source:
       type: "cube"
-      cube_id: "FIN_CX"
-      numerator_measure: "monto_glosado"
-      denominator_measure: "monto_facturado"
+      cube_id: "FactInvoice"
+      measure: "Fact Count"
 
     allow:
-      group_by: ["aseguradora", "sucursal", "prestacion", "canal"]
-      filters: ["aseguradora", "sucursal", "prestacion", "canal", "estado"]
+      group_by: ["pagador", "centro"]
+      filters: ["pagador", "centro"]
 
     mdx_templates:
-      day:   "FIN_CX_GLOSA_RATE_BY_DAY"
-      week:  "FIN_CX_GLOSA_RATE_BY_WEEK"
-      month: "FIN_CX_GLOSA_RATE_BY_MONTH"
+      day: "FACTINV_FACT_COUNT_BY_DAY"
 
-    caveats:
-      - "Puede variar por corte de carga si el periodo esta abierto."
-      - "Excluye anulaciones si filter.estado != 'anulada'."
-
-  recaudo_rate:
-    name: "Tasa de recaudo"
-    unit: "percent"
-    default_grain: "month"
-    allowed_grains: ["week", "month"]
+  total_facturado:
+    name: "Total facturado"
+    unit: "currency"
+    default_grain: "day"
+    allowed_grains: ["day"]
     source:
       type: "cube"
-      cube_id: "FIN_CX"
-      numerator_measure: "monto_pagado"
-      denominator_measure: "monto_facturado"
+      cube_id: "FactInvoice"
+      measure: "Total Facturado"
 
     allow:
-      group_by: ["aseguradora", "sucursal"]
-      filters: ["aseguradora", "sucursal", "estado"]
+      group_by: ["pagador", "centro"]
+      filters: ["pagador", "centro"]
 
     mdx_templates:
-      week:  "FIN_CX_RECAUDO_RATE_BY_WEEK"
-      month: "FIN_CX_RECAUDO_RATE_BY_MONTH"
+      day: "FACTINV_TOTAL_FACTURADO_BY_DAY"
+
+  total_radicado:
+    name: "Total radicado"
+    unit: "currency"
+    default_grain: "day"
+    allowed_grains: ["day"]
+    source:
+      type: "cube"
+      cube_id: "FactInvoice"
+      measure: "Total Radicado"
+
+    allow:
+      group_by: ["pagador", "centro"]
+      filters: ["pagador", "centro"]
+
+    mdx_templates:
+      day: "FACTINV_TOTAL_RADICADO_BY_DAY"
+
+  total_impuesto:
+    name: "Total impuesto"
+    unit: "currency"
+    default_grain: "day"
+    allowed_grains: ["day"]
+    source:
+      type: "cube"
+      cube_id: "FactInvoice"
+      measure: "Total Impuesto"
+
+    allow:
+      group_by: ["pagador", "centro"]
+      filters: ["pagador", "centro"]
+
+    mdx_templates:
+      day: "FACTINV_TOTAL_IMPUESTO_BY_DAY"
+
+  total_copago:
+    name: "Total copago"
+    unit: "currency"
+    default_grain: "day"
+    allowed_grains: ["day"]
+    source:
+      type: "cube"
+      cube_id: "FactInvoice"
+      measure: "Total Copago"
+
+    allow:
+      group_by: ["pagador", "centro"]
+      filters: ["pagador", "centro"]
+
+    mdx_templates:
+      day: "FACTINV_TOTAL_COPAGO_BY_DAY"
+
+  total_r60:
+    name: "Total R60"
+    unit: "currency"
+    default_grain: "day"
+    allowed_grains: ["day"]
+    source:
+      type: "cube"
+      cube_id: "FactInvoice"
+      measure: "Total R60"
+
+    allow:
+      group_by: ["pagador", "centro"]
+      filters: ["pagador", "centro"]
+
+    mdx_templates:
+      day: "FACTINV_TOTAL_R60_BY_DAY"
+
+  total_cartera:
+    name: "Total cartera"
+    unit: "currency"
+    default_grain: "day"
+    allowed_grains: ["day"]
+    source:
+      type: "cube"
+      cube_id: "FactInvoice"
+      measure: "Total Cartera"
+
+    allow:
+      group_by: ["pagador", "centro"]
+      filters: ["pagador", "centro"]
+
+    mdx_templates:
+      day: "FACTINV_TOTAL_CARTERA_BY_DAY"
+
+  glosa_eventos:
+    name: "Glosa eventos"
+    unit: "count"
+    default_grain: "day"
+    allowed_grains: ["day"]
+    source:
+      type: "cube"
+      cube_id: "FactInvoice"
+      measure: "Glosa Eventos"
+
+    allow:
+      group_by: ["pagador", "centro"]
+      filters: ["pagador", "centro"]
+
+    mdx_templates:
+      day: "FACTINV_GLOSA_EVENTOS_BY_DAY"
+
+  glosa_kostr:
+    name: "Glosa Kostr"
+    unit: "count"
+    default_grain: "day"
+    allowed_grains: ["day"]
+    source:
+      type: "cube"
+      cube_id: "FactInvoice"
+      measure: "Glosa Kostr"
+
+    allow:
+      group_by: ["pagador", "centro"]
+      filters: ["pagador", "centro"]
+
+    mdx_templates:
+      day: "FACTINV_GLOSA_KOSTR_BY_DAY"

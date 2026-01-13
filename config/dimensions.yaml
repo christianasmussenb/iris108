@@ -1,21 +1,9 @@
 dimensions:
-  aseguradora:
+  pagador:
     type: "string"
-    description: "Aseguradora/Isapre/Fonasa segun catalogo interno"
+    description: "Pagador (KUNRG)"
     allowed_ops: ["eq", "in", "nin"]
-  sucursal:
+  centro:
     type: "string"
-    description: "Centro/Clinica/Sucursal"
-    allowed_ops: ["eq", "in", "nin"]
-  prestacion:
-    type: "string"
-    description: "Codigo prestacion (arancel/convenio)"
-    allowed_ops: ["eq", "in", "nin"]
-  canal:
-    type: "string"
-    description: "Ambulatorio / Hospitalario / Urgencia (segun modelo)"
-    allowed_ops: ["eq", "in", "nin"]
-  estado:
-    type: "string"
-    description: "Estado del documento (p.ej. emitida/anulada/glosada)"
+    description: "Centro (ISHKOSTR)"
     allowed_ops: ["eq", "in", "nin"]

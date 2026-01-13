@@ -1,62 +1,8 @@
 templates:
 
-  FIN_CX_GLOSA_RATE_BY_MONTH:
-    cube_id: "FIN_CX"
-    description: "Tasa de glosa mensual, opcionalmente agrupado y filtrado"
-    bi_rest_endpoint: "/Data/MDXExecute"
-    params:
-      from: { type: "date", required: true }
-      to:   { type: "date", required: true }
-      group_by: { type: "string_array", required: false, max_items: 3 }
-      filters:  { type: "filter_array", required: false }
-      limit:    { type: "int", required: false, default: 200, max: 5000 }
-
-    mdx: |
-      SELECT
-        { [Measures].[monto_glosado] / NULLIF([Measures].[monto_facturado], 0) } ON 0,
-        NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FIN_CX]
-      WHERE ( {{WHERE_SLICERS}} )
-
-  FIN_CX_GLOSA_RATE_BY_WEEK:
-    cube_id: "FIN_CX"
-    description: "Tasa de glosa semanal, opcionalmente agrupado y filtrado"
-    bi_rest_endpoint: "/Data/MDXExecute"
-    params:
-      from: { type: "date", required: true }
-      to:   { type: "date", required: true }
-      group_by: { type: "string_array", required: false, max_items: 3 }
-      filters:  { type: "filter_array", required: false }
-      limit:    { type: "int", required: false, default: 200, max: 5000 }
-
-    mdx: |
-      SELECT
-        { [Measures].[monto_glosado] / NULLIF([Measures].[monto_facturado], 0) } ON 0,
-        NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FIN_CX]
-      WHERE ( {{WHERE_SLICERS}} )
-
-  FIN_CX_GLOSA_RATE_BY_DAY:
-    cube_id: "FIN_CX"
-    description: "Tasa de glosa diaria, opcionalmente agrupado y filtrado"
-    bi_rest_endpoint: "/Data/MDXExecute"
-    params:
-      from: { type: "date", required: true }
-      to:   { type: "date", required: true }
-      group_by: { type: "string_array", required: false, max_items: 3 }
-      filters:  { type: "filter_array", required: false }
-      limit:    { type: "int", required: false, default: 200, max: 5000 }
-
-    mdx: |
-      SELECT
-        { [Measures].[monto_glosado] / NULLIF([Measures].[monto_facturado], 0) } ON 0,
-        NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FIN_CX]
-      WHERE ( {{WHERE_SLICERS}} )
-
-  FIN_CX_RECAUDO_RATE_BY_MONTH:
-    cube_id: "FIN_CX"
-    description: "Tasa de recaudo mensual"
+  FACTINV_FACT_COUNT_BY_DAY:
+    cube_id: "FactInvoice"
+    description: "Cantidad de facturas por dia, opcionalmente agrupado y filtrado"
     bi_rest_endpoint: "/Data/MDXExecute"
     params:
       from: { type: "date", required: true }
@@ -64,16 +10,17 @@ templates:
       group_by: { type: "string_array", required: false, max_items: 2 }
       filters:  { type: "filter_array", required: false }
       limit:    { type: "int", required: false, default: 200, max: 5000 }
+
     mdx: |
       SELECT
-        { [Measures].[monto_pagado] / NULLIF([Measures].[monto_facturado], 0) } ON 0,
+        { [Measures].[Fact Count] } ON 0,
         NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FIN_CX]
+      FROM [FactInvoice]
       WHERE ( {{WHERE_SLICERS}} )
 
-  FIN_CX_RECAUDO_RATE_BY_WEEK:
-    cube_id: "FIN_CX"
-    description: "Tasa de recaudo semanal"
+  FACTINV_TOTAL_FACTURADO_BY_DAY:
+    cube_id: "FactInvoice"
+    description: "Total facturado por dia, opcionalmente agrupado y filtrado"
     bi_rest_endpoint: "/Data/MDXExecute"
     params:
       from: { type: "date", required: true }
@@ -81,9 +28,136 @@ templates:
       group_by: { type: "string_array", required: false, max_items: 2 }
       filters:  { type: "filter_array", required: false }
       limit:    { type: "int", required: false, default: 200, max: 5000 }
+
     mdx: |
       SELECT
-        { [Measures].[monto_pagado] / NULLIF([Measures].[monto_facturado], 0) } ON 0,
+        { [Measures].[Total Facturado] } ON 0,
         NON EMPTY {{ROW_AXIS}} ON 1
-      FROM [FIN_CX]
+      FROM [FactInvoice]
+      WHERE ( {{WHERE_SLICERS}} )
+
+  FACTINV_TOTAL_RADICADO_BY_DAY:
+    cube_id: "FactInvoice"
+    description: "Total radicado por dia, opcionalmente agrupado y filtrado"
+    bi_rest_endpoint: "/Data/MDXExecute"
+    params:
+      from: { type: "date", required: true }
+      to:   { type: "date", required: true }
+      group_by: { type: "string_array", required: false, max_items: 2 }
+      filters:  { type: "filter_array", required: false }
+      limit:    { type: "int", required: false, default: 200, max: 5000 }
+
+    mdx: |
+      SELECT
+        { [Measures].[Total Radicado] } ON 0,
+        NON EMPTY {{ROW_AXIS}} ON 1
+      FROM [FactInvoice]
+      WHERE ( {{WHERE_SLICERS}} )
+
+  FACTINV_TOTAL_IMPUESTO_BY_DAY:
+    cube_id: "FactInvoice"
+    description: "Total impuesto por dia, opcionalmente agrupado y filtrado"
+    bi_rest_endpoint: "/Data/MDXExecute"
+    params:
+      from: { type: "date", required: true }
+      to:   { type: "date", required: true }
+      group_by: { type: "string_array", required: false, max_items: 2 }
+      filters:  { type: "filter_array", required: false }
+      limit:    { type: "int", required: false, default: 200, max: 5000 }
+
+    mdx: |
+      SELECT
+        { [Measures].[Total Impuesto] } ON 0,
+        NON EMPTY {{ROW_AXIS}} ON 1
+      FROM [FactInvoice]
+      WHERE ( {{WHERE_SLICERS}} )
+
+  FACTINV_TOTAL_COPAGO_BY_DAY:
+    cube_id: "FactInvoice"
+    description: "Total copago por dia, opcionalmente agrupado y filtrado"
+    bi_rest_endpoint: "/Data/MDXExecute"
+    params:
+      from: { type: "date", required: true }
+      to:   { type: "date", required: true }
+      group_by: { type: "string_array", required: false, max_items: 2 }
+      filters:  { type: "filter_array", required: false }
+      limit:    { type: "int", required: false, default: 200, max: 5000 }
+
+    mdx: |
+      SELECT
+        { [Measures].[Total Copago] } ON 0,
+        NON EMPTY {{ROW_AXIS}} ON 1
+      FROM [FactInvoice]
+      WHERE ( {{WHERE_SLICERS}} )
+
+  FACTINV_TOTAL_R60_BY_DAY:
+    cube_id: "FactInvoice"
+    description: "Total R60 por dia, opcionalmente agrupado y filtrado"
+    bi_rest_endpoint: "/Data/MDXExecute"
+    params:
+      from: { type: "date", required: true }
+      to:   { type: "date", required: true }
+      group_by: { type: "string_array", required: false, max_items: 2 }
+      filters:  { type: "filter_array", required: false }
+      limit:    { type: "int", required: false, default: 200, max: 5000 }
+
+    mdx: |
+      SELECT
+        { [Measures].[Total R60] } ON 0,
+        NON EMPTY {{ROW_AXIS}} ON 1
+      FROM [FactInvoice]
+      WHERE ( {{WHERE_SLICERS}} )
+
+  FACTINV_TOTAL_CARTERA_BY_DAY:
+    cube_id: "FactInvoice"
+    description: "Total cartera por dia, opcionalmente agrupado y filtrado"
+    bi_rest_endpoint: "/Data/MDXExecute"
+    params:
+      from: { type: "date", required: true }
+      to:   { type: "date", required: true }
+      group_by: { type: "string_array", required: false, max_items: 2 }
+      filters:  { type: "filter_array", required: false }
+      limit:    { type: "int", required: false, default: 200, max: 5000 }
+
+    mdx: |
+      SELECT
+        { [Measures].[Total Cartera] } ON 0,
+        NON EMPTY {{ROW_AXIS}} ON 1
+      FROM [FactInvoice]
+      WHERE ( {{WHERE_SLICERS}} )
+
+  FACTINV_GLOSA_EVENTOS_BY_DAY:
+    cube_id: "FactInvoice"
+    description: "Glosa eventos por dia, opcionalmente agrupado y filtrado"
+    bi_rest_endpoint: "/Data/MDXExecute"
+    params:
+      from: { type: "date", required: true }
+      to:   { type: "date", required: true }
+      group_by: { type: "string_array", required: false, max_items: 2 }
+      filters:  { type: "filter_array", required: false }
+      limit:    { type: "int", required: false, default: 200, max: 5000 }
+
+    mdx: |
+      SELECT
+        { [Measures].[Glosa Eventos] } ON 0,
+        NON EMPTY {{ROW_AXIS}} ON 1
+      FROM [FactInvoice]
+      WHERE ( {{WHERE_SLICERS}} )
+
+  FACTINV_GLOSA_KOSTR_BY_DAY:
+    cube_id: "FactInvoice"
+    description: "Glosa Kostr por dia, opcionalmente agrupado y filtrado"
+    bi_rest_endpoint: "/Data/MDXExecute"
+    params:
+      from: { type: "date", required: true }
+      to:   { type: "date", required: true }
+      group_by: { type: "string_array", required: false, max_items: 2 }
+      filters:  { type: "filter_array", required: false }
+      limit:    { type: "int", required: false, default: 200, max: 5000 }
+
+    mdx: |
+      SELECT
+        { [Measures].[Glosa Kostr] } ON 0,
+        NON EMPTY {{ROW_AXIS}} ON 1
+      FROM [FactInvoice]
       WHERE ( {{WHERE_SLICERS}} )
