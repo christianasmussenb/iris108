@@ -1,0 +1,7 @@
+{
+    "objectscript.conn": {
+        "server": "irisestandar",
+        "ns": "MLTEST",
+        "active": true
+    }
+}
