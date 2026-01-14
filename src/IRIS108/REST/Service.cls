@@ -3,7 +3,9 @@ Include %occStatus
 Class IRIS108.REST.Service Extends %CSP.REST
 {
 
-XData UrlMap
+Parameter HandleCorsRequest = 0;
+
+XData UrlMap [ XMLNamespace = "https://www.intersystems.com/urlmap" ]
 {
 <Routes>
   <Route Url="/ping" Method="GET" Call="Ping" />
@@ -17,11 +19,19 @@ XData UrlMap
 
 ClassMethod Ping() As %Status
 {
-  Set response = ##class(%DynamicObject).%New()
-  Do response.%Set("ok", 1)
-  Do response.%Set("service", "IRIS108.REST.Service")
-  Do ..WriteJson(200, response)
-  Quit $$$OK
+  Set sc = $$$OK
+  try {
+    Set response = ##class(%DynamicObject).%New()
+    Do response.%Set("ok", 1)
+    Do response.%Set("service", "IRIS108.REST.Service")
+    Set sc = ..WriteJson(200, response)
+  }
+  catch ex {
+    Set msg = "internal_error"
+    If $IsObject(ex) Set msg = ex.DisplayString()
+    Set sc = ..WriteError(500, "internal_error", msg)
+  }
+  Quit sc
 }
 
 Method OnError() As %Status
