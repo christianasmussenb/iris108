@@ -19,19 +19,9 @@ XData UrlMap [ XMLNamespace = "https://www.intersystems.com/urlmap" ]
 
 ClassMethod Ping() As %Status
 {
-  Set sc = $$$OK
-  try {
-    Set response = ##class(%DynamicObject).%New()
-    Do response.%Set("ok", 1)
-    Do response.%Set("service", "IRIS108.REST.Service")
-    Set sc = ..WriteJson(200, response)
-  }
-  catch ex {
-    Set msg = "internal_error"
-    If $IsObject(ex) Set msg = ex.DisplayString()
-    Set sc = ..WriteError(500, "internal_error", msg)
-  }
-  Quit sc
+  Set %response.ContentType = "application/json"
+  Write "{""status"":""ok""}",!
+  Quit $$$OK
 }
 
 Method OnError() As %Status
