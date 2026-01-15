@@ -26,9 +26,38 @@ ClassMethod Ping() As %Status
 
 Method OnError() As %Status
 {
+  Try {
+    Set traceId = $Get(^IRIS108.Debug("LastTraceId"))
+    If traceId'="" Do ..Trace(traceId, "on_error:"_$ZERROR)
+    Do ..Trace("GLOBAL", "on_error:"_$ZERROR_" path="_$Get(%request.PathInfo)_" method="_$Get(%request.Method))
+  } Catch ex {
+  }
   Set %response.Status = 500
   Set %response.ContentType = "text/plain"
   Write "internal_error: "_$ZERROR,!
+  Quit $$$OK
+}
+
+ClassMethod OnPreDispatch() As %Status
+{
+  Try {
+    Set traceId = ..StartTrace("PreDispatch")
+    Set ^IRIS108.Debug("LastTraceId") = traceId
+    Do ..Trace(traceId, "method:"_$Get(%request.Method))
+    Do ..Trace(traceId, "path:"_$Get(%request.PathInfo))
+    Do ..Trace(traceId, "query:"_$Get(%request.QueryString))
+  } Catch ex {
+  }
+  Quit $$$OK
+}
+
+ClassMethod OnPostDispatch() As %Status
+{
+  Try {
+    Set traceId = $Get(^IRIS108.Debug("LastTraceId"))
+    If traceId'="" Do ..Trace(traceId, "postdispatch:status="_$Get(%response.Status))
+  } Catch ex {
+  }
   Quit $$$OK
 }
 
@@ -99,8 +128,6 @@ ClassMethod QueryKpi() As %Status
 {
   Set sc = $$$OK
   Try {
-    Set %response.ContentType = "text/plain"
-    Write "query_kpi:start",!
     Set sc = ..RequireApiKey()
     If $$$ISERR(sc) Goto Done
 
@@ -111,7 +138,6 @@ ClassMethod QueryKpi() As %Status
       Goto Done
     }
     Set tJson = tStream.Read()
-    Write "query_kpi:body_ok",!
 
     Set kpiId = ""
     Set sc = ..ExtractJsonValue(tJson, "kpi_id", .kpiId)
@@ -206,18 +232,16 @@ ClassMethod QueryKpi() As %Status
       Goto Done
     }
 
-    Write "query_kpi:mdx_ok",!
     Set sc = ..ExecuteMdxRaw(templateJson, mdx, .biRaw, .biUrl)
     If $$$ISERR(sc) Goto Done
 
-    Write "query_kpi:bi_ok",!
-    Write "kpi_id: "_kpiId,!
-    Write "template_id: "_templateId,!
-    Write "bi_url: "_$Get(biUrl),!
-    Write "mdx:",!
-    Write mdx,!
-    Write "bi_response:",!
-    Do ..WriteHeadFromString(biRaw, 10, 200)
+    Set response = ##class(%DynamicObject).%New()
+    Do response.%Set("kpi_id", kpiId)
+    Do response.%Set("template_id", templateId)
+    Do response.%Set("bi_url", $Get(biUrl))
+    Do response.%Set("mdx", mdx)
+    Do response.%Set("bi_response_raw", $Get(biRaw))
+    Do ..WriteJson(200, response)
   } Catch ex {
     Do ..WriteError(500, "internal_error", ex.DisplayString())
   }
@@ -228,61 +252,125 @@ Done
 ClassMethod QueryCube() As %Status
 {
   Set tStart = $ZTIMESTAMP
-  Set sc = ..RequireApiKey()
-  If $$$ISERR(sc) Goto Done
+  Set traceId = ..StartTrace("QueryCube")
+  Try {
+    Do ..TraceWrite("start")
+    Do ..Trace(traceId, "require_api_key")
+    Set sc = ..RequireApiKey()
+    If $$$ISERR(sc) {
+      Do ..TraceWrite("require_api_key:fail")
+      Do ..Trace(traceId, "require_api_key:fail")
+      Goto Done
+    }
 
-  Set sc = ..ReadJsonBody(.req)
-  If $$$ISERR(sc) Goto Done
+    Do ..TraceWrite("read_json_body")
+    Do ..Trace(traceId, "read_json_body")
+    Set sc = ..ReadJsonBody(.req)
+    If $$$ISERR(sc) {
+      Do ..TraceWrite("read_json_body:fail")
+      Do ..Trace(traceId, "read_json_body:fail")
+      Goto Done
+    }
 
-  Set templateId = $Get(req.%Get("template_id"), "")
-  If templateId = "" {
-    Do ..WriteError(400, "invalid_request", "template_id requerido")
-    Goto Done
+    Set templateId = ""
+    If $IsObject(req) Set templateId = req.%Get("template_id")
+    If templateId = "" {
+      Do ..TraceWrite("template_id:missing")
+      Do ..Trace(traceId, "template_id:missing")
+      Do ..WriteError(400, "invalid_request", "template_id requerido")
+      Goto Done
+    }
+    Do ..TraceWrite("template_id:"_templateId)
+    Do ..Trace(traceId, "template_id:"_templateId)
+
+    Do ..TraceWrite("load_cube_templates")
+    Do ..Trace(traceId, "load_cube_templates")
+    Set sc = ##class(IRIS108.Util.Config).Load("cube_templates.yaml", .templates)
+    If $$$ISERR(sc) {
+      Do ..TraceWrite("load_cube_templates:fail")
+      Do ..Trace(traceId, "load_cube_templates:fail")
+      Do ..WriteError(500, "config_load_failed", $SYSTEM.Status.GetErrorText(sc))
+      Goto Done
+    }
+
+    Set templatesMap = templates.%Get("templates")
+    Set template = ""
+    If $IsObject(templatesMap) Set template = templatesMap.%Get(templateId)
+    If '$IsObject(template) {
+      Do ..TraceWrite("template_not_found")
+      Do ..Trace(traceId, "template_not_found")
+      Do ..WriteError(404, "template_not_found", "template no encontrado")
+      Goto Done
+    }
+    Do ..TraceWrite("template_ok")
+    Do ..Trace(traceId, "template_ok")
+
+    Set params = ""
+    If $IsObject(req) Set params = req.%Get("params")
+    If '$IsObject(params) {
+      Do ..TraceWrite("params:missing")
+      Do ..Trace(traceId, "params:missing")
+      Do ..WriteError(400, "invalid_request", "params requerido")
+      Goto Done
+    }
+
+    Do ..TraceWrite("parse_dates")
+    Do ..Trace(traceId, "parse_dates")
+    Set fromRaw = ""
+    If $IsObject(params) Set fromRaw = params.%Get("from")
+    Set sc = ..ParseDate(fromRaw, .fromYMD, .fromH)
+    If $$$ISERR(sc) Goto Done
+    Set toRaw = ""
+    If $IsObject(params) Set toRaw = params.%Get("to")
+    Set sc = ..ParseDate(toRaw, .toYMD, .toH)
+    If $$$ISERR(sc) Goto Done
+
+    Set groupBy = ""
+    Set filters = ""
+    Set limit = 200
+    If $IsObject(params) {
+      Set groupBy = params.%Get("group_by")
+      Set filters = params.%Get("filters")
+      Set limitVal = params.%Get("limit")
+      If limitVal'="" Set limit = limitVal
+    }
+
+    Do ..TraceWrite("build_mdx")
+    Do ..Trace(traceId, "build_mdx")
+    Set mdxTpl = ""
+    If $IsObject(template) Set mdxTpl = template.%Get("mdx")
+    If $IsObject(mdxTpl) Set mdxTpl = ""
+    Set mdx = ..BuildMdx(mdxTpl, fromYMD, toYMD, groupBy, filters, limit)
+    If mdx = "" {
+      Do ..TraceWrite("mdx_build_error")
+      Do ..Trace(traceId, "mdx_build_error")
+      Do ..WriteError(500, "mdx_build_error", "no se pudo construir mdx")
+      Goto Done
+    }
+
+    Do ..TraceWrite("execute_mdx")
+    Do ..Trace(traceId, "execute_mdx")
+    Set biEndpoint = ""
+    If $IsObject(template) Set biEndpoint = template.%Get("bi_rest_endpoint")
+    If $IsObject(biEndpoint) Set biEndpoint = ""
+    Set sc = ..ExecuteMdx(biEndpoint, mdx, .biResp)
+    If $$$ISERR(sc) Goto Done
+
+    Do ..TraceWrite("normalize_response")
+    Do ..Trace(traceId, "normalize_response")
+    Set response = ##class(%DynamicObject).%New()
+    Do response.%Set("template_id", templateId)
+    Do response.%Set("rows", ..NormalizeMdxResponse(biResp, groupBy))
+    Do ..AddMetadata(.response, tStart)
+    Do response.%Set("trace_id", traceId)
+    Do ..TraceWrite("write_json")
+    Do ..Trace(traceId, "write_json")
+    Do ..WriteJson(200, response)
+  } Catch ex {
+    Do ..TraceWrite("exception:"_ex.DisplayString())
+    Do ..Trace(traceId, "exception:"_ex.DisplayString())
+    Do ..WriteError(500, "internal_error", ex.DisplayString())
   }
-
-  Set sc = ##class(IRIS108.Util.Config).Load("cube_templates.yaml", .templates)
-  If $$$ISERR(sc) {
-    Do ..WriteError(500, "config_load_failed", $SYSTEM.Status.GetErrorText(sc))
-    Goto Done
-  }
-
-  Set templatesMap = templates.%Get("templates")
-  Set template = ""
-  If $IsObject(templatesMap) Set template = templatesMap.%Get(templateId)
-  If '$IsObject(template) {
-    Do ..WriteError(404, "template_not_found", "template no encontrado")
-    Goto Done
-  }
-
-  Set params = req.%Get("params")
-  If '$IsObject(params) {
-    Do ..WriteError(400, "invalid_request", "params requerido")
-    Goto Done
-  }
-
-  Set sc = ..ParseDate($Get(params.%Get("from"), ""), .fromYMD, .fromH)
-  If $$$ISERR(sc) Goto Done
-  Set sc = ..ParseDate($Get(params.%Get("to"), ""), .toYMD, .toH)
-  If $$$ISERR(sc) Goto Done
-
-  Set groupBy = params.%Get("group_by")
-  Set filters = params.%Get("filters")
-  Set limit = $Get(params.%Get("limit"), 200)
-
-  Set mdx = ..BuildMdx($Get(template.%Get("mdx"), ""), fromYMD, toYMD, groupBy, filters, limit)
-  If mdx = "" {
-    Do ..WriteError(500, "mdx_build_error", "no se pudo construir mdx")
-    Goto Done
-  }
-
-  Set sc = ..ExecuteMdx($Get(template.%Get("bi_rest_endpoint"), ""), mdx, .biResp)
-  If $$$ISERR(sc) Goto Done
-
-  Set response = ##class(%DynamicObject).%New()
-  Do response.%Set("template_id", templateId)
-  Do response.%Set("rows", ..NormalizeMdxResponse(biResp, groupBy))
-  Do ..AddMetadata(.response, tStart)
-  Do ..WriteJson(200, response)
 Done
   Quit $$$OK
 }
@@ -290,19 +378,30 @@ Done
 ClassMethod DqStatus() As %Status
 {
   Set tStart = $ZTIMESTAMP
-  Set sc = ..RequireApiKey()
-  If $$$ISERR(sc) Goto Done
+  Set traceId = ..StartTrace("DqStatus")
+  Try {
+    Do ..Trace(traceId, "require_api_key")
+    Set sc = ..RequireApiKey()
+    If $$$ISERR(sc) Goto Done
 
-  Set sc = ..ReadJsonBody(.req)
-  If $$$ISERR(sc) Goto Done
+    Do ..Trace(traceId, "read_json_body")
+    Set sc = ..ReadJsonBody(.req)
+    If $$$ISERR(sc) Goto Done
 
-  Set sc = ..GetLastCutoff(.cutoff)
-  If $$$ISERR(sc) Goto Done
+    Do ..Trace(traceId, "get_last_cutoff")
+    Set sc = ..GetLastCutoff(.cutoff)
+    If $$$ISERR(sc) Goto Done
 
-  Set response = ##class(%DynamicObject).%New()
-  Do response.%Set("cutoff", cutoff)
-  Do ..AddMetadata(.response, tStart)
-  Do ..WriteJson(200, response)
+    Set response = ##class(%DynamicObject).%New()
+    Do response.%Set("cutoff", cutoff)
+    Do ..AddMetadata(.response, tStart)
+    Do response.%Set("trace_id", traceId)
+    Do ..Trace(traceId, "write_json")
+    Do ..WriteJson(200, response)
+  } Catch ex {
+    Do ..Trace(traceId, "exception:"_ex.DisplayString())
+    Do ..WriteError(500, "internal_error", ex.DisplayString())
+  }
 Done
   Quit $$$OK
 }
@@ -600,23 +699,38 @@ ClassMethod ExecuteMdx(endpoint As %String, mdx As %String, ByRef responseObj As
     Goto Done
   }
 
-  Set parser = ##class(%Net.URLParser).%New()
-  Do parser.Parse(baseUrl)
-
   Set req = ##class(%Net.HttpRequest).%New()
-  Set req.Server = parser.Host
-  Set req.Port = parser.Port
-  Set req.Https = (parser.Scheme = "https")
-  Set path = parser.Path _ endpoint
-  If parser.Path = "" Set path = endpoint
+  Set sc = ..ParseBaseUrl(baseUrl, .host, .port, .isHttps, .basePath)
+  If $$$ISERR(sc) Goto Done
+  Set req.Server = host
+  Set req.Port = port
+  Set req.Https = isHttps
+  Set path = ..JoinPath(basePath, endpoint)
+  Set ns = $Get(^IRIS108.Config("BINamespace"), "")
+  If ns'="" {
+    Set path = ..AppendQuery(path, "Namespace", ns)
+    Set path = ..AppendQuery(path, "namespace", ns)
+    Set path = ..AppendQuery(path, "NS", ns)
+    Set path = ..AppendQuery(path, "$NAMESPACE", ns)
+  }
   Set req.Location = path
-  Do req.SetHeader("Content-Type", "application/json")
+  Set req.ContentType = "application/json"
+  Do req.SetHeader("Accept", "application/json")
+  If ns'="" Do req.SetHeader("Namespace", ns)
+  If ns'="" Do req.SetHeader("X-IRIS-Namespace", ns)
+  Set sc = ..ApplyBiCredentials(.req)
+  If $$$ISERR(sc) Goto Done
 
+  Set mdx = ..NormalizeMdx(mdx)
   Set payload = ##class(%DynamicObject).%New()
   Do payload.%Set("MDX", mdx)
   Set json = payload.%ToJSON()
 
-  Set sc = req.Post(path, json)
+  Do req.SetHeader("Content-Length", $Length(json))
+  Set req.EntityBody = ##class(%Stream.TmpCharacter).%New()
+  Do req.EntityBody.Write(json)
+  Do req.EntityBody.Rewind()
+  Set sc = req.Post(path)
   If $$$ISERR(sc) {
     Do ..WriteError(502, "bi_call_failed", $SYSTEM.Status.GetErrorText(sc))
     Set sc = $$$ERROR(502)
@@ -693,7 +807,12 @@ ClassMethod AddMetadata(ByRef response As %DynamicObject, startTs As %TimeStamp)
 {
   Do response.%Set("correlation_id", $SYSTEM.Util.CreateGUID())
   Set meta = ##class(%DynamicObject).%New()
-  Do meta.%Set("executed_at", $ZDATETIME($SYSTEM.Util.UTCNow(), 3, 1))
+  Set nowTs = $ZTIMESTAMP
+  Try {
+    Set nowTs = $SYSTEM.Util.UTCNow()
+  } Catch ex {
+  }
+  Do meta.%Set("executed_at", $ZDATETIME(nowTs, 3, 1))
   Do meta.%Set("execution_ms", ..ElapsedMs(startTs))
   Set sc = ..GetLastCutoff(.cutoff)
   If $$$ISOK(sc) Do meta.%Set("as_of_cutoff", cutoff)
@@ -704,7 +823,12 @@ ClassMethod AddMetadata(ByRef response As %DynamicObject, startTs As %TimeStamp)
 ClassMethod ElapsedMs(startTs As %TimeStamp) As %Integer
 {
   Set endTs = $ZTIMESTAMP
-  Set ms = $SYSTEM.Util.GetMilliSecondsBetween(startTs, endTs)
+  Set ms = 0
+  Try {
+    Set ms = $SYSTEM.Util.GetMilliSecondsBetween(startTs, endTs)
+  } Catch ex {
+    Set ms = 0
+  }
   Quit ms
 }
 
@@ -727,7 +851,7 @@ ClassMethod WriteJson(status As %Integer, response As %DynamicObject) As %Status
 {
   Set %response.Status = status
   Set %response.ContentType = "application/json"
-  Do %response.Write(response.%ToJSON())
+  Write response.%ToJSON()
   Quit $$$OK
 }
 
@@ -927,12 +1051,23 @@ ClassMethod ExecuteMdxRaw(templateJson As %String, mdx As %String, ByRef raw As 
     }
     Set urlUsed = ..BuildUrl(isHttps, host, port, path)
     Set req.Location = path
-    Do req.SetHeader("Content-Type", "application/json")
+    Set req.ContentType = "application/json"
+    Do req.SetHeader("Accept", "application/json")
     If ns'="" Do req.SetHeader("Namespace", ns)
     If ns'="" Do req.SetHeader("X-IRIS-Namespace", ns)
+    Set sc = ..ApplyBiCredentials(.req)
+    If $$$ISERR(sc) Goto Done
 
+    Set mdx = ..NormalizeMdx(mdx)
     Set payload = "{""MDX"":"""_..JsonEscape(mdx)_"""}"
-    Set sc = req.Post(path, payload)
+    Set ^IRIS108.Debug("LastMdxUrl") = urlUsed
+    Set ^IRIS108.Debug("LastMdxPayloadLen") = $Length(payload)
+    Set ^IRIS108.Debug("LastMdxPayloadHead") = $Extract(payload, 1, 200)
+    Do req.SetHeader("Content-Length", $Length(payload))
+    Set req.EntityBody = ##class(%Stream.TmpCharacter).%New()
+    Do req.EntityBody.Write(payload)
+    Do req.EntityBody.Rewind()
+    Set sc = req.Post(path)
     If $$$ISERR(sc) {
       Do ..WriteError(502, "bi_call_failed", $SYSTEM.Status.GetErrorText(sc))
       Set sc = $$$ERROR(502)
@@ -959,6 +1094,54 @@ Done
   Quit sc
 }
 
+ClassMethod ApplyBiCredentials(ByRef req As %Net.HttpRequest) As %Status
+{
+  Set user = $Get(^IRIS108.Config("BIUser"))
+  Set pass = $Get(^IRIS108.Config("BIPass"))
+  If (user = "")!(pass = "") {
+    Do ..WriteError(500, "bi_credentials_missing", "Configurar ^IRIS108.Config(""BIUser"") y ^IRIS108.Config(""BIPass"")")
+    Quit $$$ERROR(500)
+  }
+
+  Set req.Username = user
+  Set req.Password = pass
+  Quit $$$OK
+}
+
+ClassMethod StartTrace(label As %String) As %String
+{
+  Set traceId = $SYSTEM.Util.CreateGUID()
+  Try {
+    Do ..Trace(traceId, "start:"_label)
+  } Catch ex {
+  }
+  Try {
+    If $IsObject(%response) Do %response.SetHeader("X-Trace-Id", traceId)
+  } Catch ex {
+  }
+  Quit traceId
+}
+
+ClassMethod Trace(traceId As %String, message As %String) As %Status
+{
+  If traceId = "" Quit $$$OK
+  Try {
+    Set ts = $ZDATETIME($SYSTEM.Util.UTCNow(), 3, 1)
+    Set idx = $Increment(^IRIS108.Debug("Trace", traceId))
+    Set ^IRIS108.Debug("Trace", traceId, idx) = ts_"|"_message
+  } Catch ex {
+  }
+  Quit $$$OK
+}
+
+ClassMethod TraceWrite(message As %String) As %Status
+{
+  If $Get(^IRIS108.Config("DebugWrite"))'=1 Quit $$$OK
+  Set %response.ContentType = "text/plain"
+  Write "{""status"":""ok"",""step"":"""_message_"""}",!
+  Quit $$$OK
+}
+
 ClassMethod JsonEscape(value As %String) As %String
 {
   Set clean = $Get(value)
@@ -967,6 +1150,17 @@ ClassMethod JsonEscape(value As %String) As %String
   Set clean = $Replace(clean, $Char(13,10), "\n")
   Set clean = $Replace(clean, $Char(13), "\n")
   Set clean = $Replace(clean, $Char(10), "\n")
+  Quit clean
+}
+
+ClassMethod NormalizeMdx(value As %String) As %String
+{
+  Set clean = $Get(value)
+  Set clean = $Replace(clean, "\r\n", $Char(10))
+  Set clean = $Replace(clean, "\n", $Char(10))
+  Set clean = $Replace(clean, "\r", $Char(10))
+  Set clean = $Replace(clean, $Char(13,10), $Char(10))
+  Set clean = $Replace(clean, $Char(13), $Char(10))
   Quit clean
 }
 
