@@ -112,6 +112,15 @@ Propósito: plantilla reutilizable para iniciar proyectos IRIS + ObjectScript co
 
 ---
 
+## Anexo: buenas practicas aplicadas en IRIS108
+- Credenciales y URLs externas en globals (no hardcode): `^IRIS108.Config("BIUser")`, `^IRIS108.Config("BIPass")`, `^IRIS108.Config("BIBaseUrl")`.
+- Uso consistente de `WriteError` y `WriteJson` para evitar 500 HTML del Web Gateway.
+- Envio de JSON hacia BI REST con `EntityBody` y `%Stream.TmpCharacter`.
+- Trazas controladas por flag (`^IRIS108.Config("DebugWrite")`) para diagnostico sin romper la respuesta final.
+- Fallbacks defensivos cuando metodos del sistema no existen en la version instalada.
+
+---
+
 ## 15. Contenidos insertados desde iris102
 
 ### A) Contenido completo de @BUENAS_PRACTICAS_IRIS.md (insertado)

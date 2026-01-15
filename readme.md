@@ -83,6 +83,9 @@ The solution exposes a small, **governed REST API** hosted **inside InterSystems
 - BI UI verificado en: `/csp/mltest/_DeepSee.UI.Analyzer.zen` y `/csp/mltest/_DeepSee.UI.MDXQuery.zen`.
 - Configuración cargada desde globals cuando no existe `%SYS.YAML`.
 - Web App REST: `/csp/iris108` con `IRIS108.REST.Service` (requiere recarga del Web Gateway si da 500 HTML).
+- BI REST requiere credenciales desde globals: `^IRIS108.Config("BIUser")` y `^IRIS108.Config("BIPass")`.
+- BI REST usa `^IRIS108.Config("BIBaseUrl")` (ej.: `http://172.10.250.26/irisestandar/api/deepsee/v3/MLTEST`).
+- Debug controlado por flag `^IRIS108.Config("DebugWrite")` (solo para trazas temporales).
 
 ## Configuración sin %SYS.YAML
 Si `%SYS.YAML` no está disponible, la carga de configuración usa globals:
