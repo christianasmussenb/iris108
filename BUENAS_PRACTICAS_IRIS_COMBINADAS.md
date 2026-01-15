@@ -118,6 +118,9 @@ Propósito: plantilla reutilizable para iniciar proyectos IRIS + ObjectScript co
 - Envio de JSON hacia BI REST con `EntityBody` y `%Stream.TmpCharacter`.
 - Trazas controladas por flag (`^IRIS108.Config("DebugWrite")`) para diagnostico sin romper la respuesta final.
 - Fallbacks defensivos cuando metodos del sistema no existen en la version instalada.
+- SQL embebido para consultas simples cuando `%SQL.Statement/%ResultSet` no son compatibles.
+- Errores JSON con headers `X-Error-Code`/`X-Error-Message` para evitar diagnostico a ciegas.
+- Flags de debug puntuales para inspeccionar respuestas BI y validaciones sin tocar logs.
 
 ---
 

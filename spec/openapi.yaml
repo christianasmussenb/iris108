@@ -3,7 +3,7 @@ info:
   title: IRIS Data Agent API
   version: 1.0.0
 servers:
-  - url: https://<TU-DOMINIO>/api/gpt/v1
+  - url: https://<TU-DOMINIO>/csp/iris108
 
 components:
   securitySchemes:

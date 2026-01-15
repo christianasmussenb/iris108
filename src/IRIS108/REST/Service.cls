@@ -63,15 +63,87 @@ ClassMethod OnPostDispatch() As %Status
 
 ClassMethod GetCapabilities() As %Status
 {
+  Set tStart = $ZTIMESTAMP
   Try {
     Set sc = ..RequireApiKey()
     If $$$ISERR(sc) Goto Done
 
-    Set %response.ContentType = "text/plain"
-    Do ..WriteConfigHead("agent_limits.yaml", "agent_limits")
-    Do ..WriteConfigHead("dimensions.yaml", "dimensions")
-    Do ..WriteConfigHead("kpi_registry.yaml", "kpi_registry")
-    Do ..WriteConfigHead("cube_templates.yaml", "cube_templates")
+    Set sc = ##class(IRIS108.Util.Config).Load("agent_limits.yaml", .limitsCfg)
+    If $$$ISERR(sc) {
+      Do ..WriteError(500, "config_load_failed", $SYSTEM.Status.GetErrorText(sc))
+      Goto Done
+    }
+    Set sc = ##class(IRIS108.Util.Config).Load("kpi_registry.yaml", .kpisCfg)
+    If $$$ISERR(sc) {
+      Do ..WriteError(500, "config_load_failed", $SYSTEM.Status.GetErrorText(sc))
+      Goto Done
+    }
+    Set sc = ##class(IRIS108.Util.Config).Load("cube_templates.yaml", .templatesCfg)
+    If $$$ISERR(sc) {
+      Do ..WriteError(500, "config_load_failed", $SYSTEM.Status.GetErrorText(sc))
+      Goto Done
+    }
+
+    Set response = ##class(%DynamicObject).%New()
+    Set kpisArr = ##class(%DynamicArray).%New()
+    Set cubesArr = ##class(%DynamicArray).%New()
+
+    Set kpisMap = ""
+    If $IsObject(kpisCfg) Set kpisMap = kpisCfg.%Get("kpis")
+    If $IsObject(kpisMap) {
+      Set it = kpisMap.%GetIterator()
+      For {
+        If 'it.%GetNext(.kpiId, .kpiDef) Quit
+        Set item = ##class(%DynamicObject).%New()
+        Do item.%Set("kpi_id", kpiId)
+        If $IsObject(kpiDef) {
+          Do item.%Set("name", kpiDef.%Get("name"))
+          Do item.%Set("unit", kpiDef.%Get("unit"))
+          Do item.%Set("default_grain", kpiDef.%Get("default_grain"))
+          Do item.%Set("allowed_grains", kpiDef.%Get("allowed_grains"))
+          Do item.%Set("allow", kpiDef.%Get("allow"))
+          Do item.%Set("source", kpiDef.%Get("source"))
+          Do item.%Set("mdx_templates", kpiDef.%Get("mdx_templates"))
+        }
+        Do kpisArr.%Push(item)
+      }
+    }
+
+    Set templatesMap = ""
+    If $IsObject(templatesCfg) Set templatesMap = templatesCfg.%Get("templates")
+    Set cubesMap = ##class(%DynamicObject).%New()
+    If $IsObject(templatesMap) {
+      Set it = templatesMap.%GetIterator()
+      For {
+        If 'it.%GetNext(.tplId, .tplDef) Quit
+        Set cubeId = ""
+        If $IsObject(tplDef) Set cubeId = tplDef.%Get("cube_id")
+        If cubeId = "" Continue
+        Set tplList = ""
+        If cubesMap.%IsDefined(cubeId) {
+          Set tplList = cubesMap.%Get(cubeId)
+        } Else {
+          Set tplList = ##class(%DynamicArray).%New()
+          Do cubesMap.%Set(cubeId, tplList)
+        }
+        Do tplList.%Push(tplId)
+      }
+    }
+
+    Set it = cubesMap.%GetIterator()
+    For {
+      If 'it.%GetNext(.cubeId, .tplList) Quit
+      Set cubeItem = ##class(%DynamicObject).%New()
+      Do cubeItem.%Set("cube_id", cubeId)
+      Do cubeItem.%Set("templates", tplList)
+      Do cubesArr.%Push(cubeItem)
+    }
+
+    Do response.%Set("kpis", kpisArr)
+    Do response.%Set("cubes", cubesArr)
+    If $IsObject(limitsCfg) Do response.%Set("limits", limitsCfg.%Get("limits"))
+    Do ..AddMetadata(.response, tStart)
+    Do ..WriteJson(200, response)
   } Catch ex {
     Do ..WriteError(500, "internal_error", ex.DisplayString())
   }
@@ -131,107 +203,227 @@ ClassMethod QueryKpi() As %Status
     Set sc = ..RequireApiKey()
     If $$$ISERR(sc) Goto Done
 
-    Set tStream = %request.Content
-    If tStream = "" {
-      Do ..WriteError(400, "invalid_request", "body requerido")
-      Set sc = $$$ERROR(400)
-      Goto Done
-    }
-    Set tJson = tStream.Read()
+    Set sc = ..ReadJsonBody(.req)
+    If $$$ISERR(sc) Goto Done
 
     Set kpiId = ""
-    Set sc = ..ExtractJsonValue(tJson, "kpi_id", .kpiId)
-    If $$$ISERR(sc) Goto Done
+    If $IsObject(req) Set kpiId = req.%Get("kpi_id")
     If kpiId = "" {
       Do ..WriteError(400, "invalid_request", "kpi_id requerido")
       Goto Done
     }
 
+    Set timeObj = ""
+    If $IsObject(req) Set timeObj = req.%Get("time")
+    If '$IsObject(timeObj) {
+      Do ..WriteError(400, "invalid_request", "time requerido")
+      Goto Done
+    }
+
     Set grain = ""
-    Set sc = ..ExtractJsonValue(tJson, "grain", .grain)
-    If $$$ISERR(sc) Goto Done
+    If $IsObject(timeObj) Set grain = timeObj.%Get("grain")
     If grain = "" {
       Do ..WriteError(400, "invalid_request", "time.grain requerido")
       Goto Done
     }
-
     Set fromVal = ""
-    Set sc = ..ExtractJsonValue(tJson, "from", .fromVal)
-    If $$$ISERR(sc) Goto Done
+    If $IsObject(timeObj) Set fromVal = timeObj.%Get("from")
     If fromVal = "" {
       Do ..WriteError(400, "invalid_request", "time.from requerido")
       Goto Done
     }
-
     Set toVal = ""
-    Set sc = ..ExtractJsonValue(tJson, "to", .toVal)
-    If $$$ISERR(sc) Goto Done
+    If $IsObject(timeObj) Set toVal = timeObj.%Get("to")
     If toVal = "" {
       Do ..WriteError(400, "invalid_request", "time.to requerido")
       Goto Done
     }
 
-    Set regJson = $Get(^IRIS108.ConfigData("kpi_registry", "json"))
-    If regJson = "" {
-      Do ..WriteError(500, "config_missing", "kpi_registry no encontrado en ^IRIS108.ConfigData")
+    Set sc = ##class(IRIS108.Util.Config).Load("kpi_registry.yaml", .kpisCfg)
+    If $$$ISERR(sc) {
+      Do ..WriteError(500, "config_load_failed", $SYSTEM.Status.GetErrorText(sc))
+      Goto Done
+    }
+    Set sc = ##class(IRIS108.Util.Config).Load("cube_templates.yaml", .templatesCfg)
+    If $$$ISERR(sc) {
+      Do ..WriteError(500, "config_load_failed", $SYSTEM.Status.GetErrorText(sc))
+      Goto Done
+    }
+    Set sc = ##class(IRIS108.Util.Config).Load("dimensions.yaml", .dimsCfg)
+    If $$$ISERR(sc) {
+      Do ..WriteError(500, "config_load_failed", $SYSTEM.Status.GetErrorText(sc))
+      Goto Done
+    }
+    Set sc = ##class(IRIS108.Util.Config).Load("agent_limits.yaml", .limitsCfg)
+    If $$$ISERR(sc) {
+      Do ..WriteError(500, "config_load_failed", $SYSTEM.Status.GetErrorText(sc))
       Goto Done
     }
 
-    Set kpiJson = ""
-    Set sc = ..ExtractJsonObjectByKey(regJson, kpiId, .kpiJson)
-    If $$$ISERR(sc) {
+    Set kpisMap = ""
+    If $IsObject(kpisCfg) Set kpisMap = kpisCfg.%Get("kpis")
+    Set kpi = ""
+    If $IsObject(kpisMap) Set kpi = kpisMap.%Get(kpiId)
+    If '$IsObject(kpi) {
       Do ..WriteError(404, "kpi_not_found", "KPI no registrado")
       Goto Done
     }
 
-    Set mdxTplJson = ""
-    Set sc = ..ExtractJsonObjectByKey(kpiJson, "mdx_templates", .mdxTplJson)
-    If $$$ISERR(sc) {
-      Do ..WriteError(500, "template_missing", "mdx_templates no configurado")
-      Goto Done
+    Set allowedGrains = kpi.%Get("allowed_grains")
+    If $IsObject(allowedGrains) {
+      If ' ..ContainsValue(allowedGrains, grain) {
+        If $Get(^IRIS108.Config("DebugKpi")) = 1 {
+          Do ..SetDebugHeader("X-Debug-Grain", grain)
+          Do ..SetDebugHeader("X-Debug-KpiAllowed", ..DebugValueToString(allowedGrains))
+          Do ..SetDebugHeader("X-Debug-KpiAllowedType", ..DebugTypeOf(allowedGrains))
+        }
+        Do ..WriteError(400, "invalid_request", "time.grain no permitido")
+        Goto Done
+      }
+    } Else {
+      If (allowedGrains'="")&(allowedGrains'=grain) {
+        If $Get(^IRIS108.Config("DebugKpi")) = 1 {
+          Do ..SetDebugHeader("X-Debug-Grain", grain)
+          Do ..SetDebugHeader("X-Debug-KpiAllowed", allowedGrains)
+          Do ..SetDebugHeader("X-Debug-KpiAllowedType", "scalar")
+        }
+        Do ..WriteError(400, "invalid_request", "time.grain no permitido")
+        Goto Done
+      }
     }
 
-    Set templateId = ""
-    Set sc = ..ExtractJsonValue(mdxTplJson, grain, .templateId)
-    If $$$ISERR(sc) Goto Done
-    If templateId = "" {
-      Do ..WriteError(500, "template_missing", "template no configurado para grain")
-      Goto Done
-    }
-
-    Set tplRegistry = $Get(^IRIS108.ConfigData("cube_templates", "json"))
-    If tplRegistry = "" {
-      Do ..WriteError(500, "config_missing", "cube_templates no encontrado en ^IRIS108.ConfigData")
-      Goto Done
-    }
-
-    Set templateJson = ""
-    Set sc = ..ExtractJsonObjectByKey(tplRegistry, templateId, .templateJson)
-    If $$$ISERR(sc) {
-      Do ..WriteError(500, "template_missing", "template no encontrado")
-      Goto Done
-    }
-
-    Set mdxTemplate = ""
-    Set sc = ..ExtractJsonValue(templateJson, "mdx", .mdxTemplate)
-    If $$$ISERR(sc) Goto Done
-    If mdxTemplate = "" {
-      Do ..WriteError(500, "mdx_build_error", "template mdx vacio")
-      Goto Done
+    Set limits = ""
+    If $IsObject(limitsCfg) Set limits = limitsCfg.%Get("limits")
+    Set allowedGlobal = ""
+    If $IsObject(limits) Set allowedGlobal = limits.%Get("allowed_grains")
+    If $IsObject(allowedGlobal) {
+      If ' ..ContainsValue(allowedGlobal, grain) {
+        If $Get(^IRIS108.Config("DebugKpi")) = 1 {
+          Do ..SetDebugHeader("X-Debug-Grain", grain)
+          Do ..SetDebugHeader("X-Debug-GlobalAllowed", ..DebugValueToString(allowedGlobal))
+          Do ..SetDebugHeader("X-Debug-GlobalAllowedType", ..DebugTypeOf(allowedGlobal))
+        }
+        Do ..WriteError(400, "invalid_request", "time.grain no permitido")
+        Goto Done
+      }
+    } Else {
+      If (allowedGlobal'="")&(allowedGlobal'=grain) {
+        If $Get(^IRIS108.Config("DebugKpi")) = 1 {
+          Do ..SetDebugHeader("X-Debug-Grain", grain)
+          Do ..SetDebugHeader("X-Debug-GlobalAllowed", allowedGlobal)
+          Do ..SetDebugHeader("X-Debug-GlobalAllowedType", "scalar")
+        }
+        Do ..WriteError(400, "invalid_request", "time.grain no permitido")
+        Goto Done
+      }
     }
 
     Set sc = ..ParseDate(fromVal, .fromYMD, .fromH)
     If $$$ISERR(sc) Goto Done
     Set sc = ..ParseDate(toVal, .toYMD, .toH)
     If $$$ISERR(sc) Goto Done
+    If fromH > toH {
+      Do ..WriteError(400, "invalid_request", "time.from mayor que time.to")
+      Goto Done
+    }
+    Set maxRange = 0
+    If $IsObject(limits) Set maxRange = +limits.%Get("max_date_range_days")
+    If (maxRange > 0) {
+      Set rangeDays = (toH - fromH) + 1
+      If rangeDays > maxRange {
+        Do ..WriteError(400, "invalid_request", "rango de fechas excede el maximo")
+        Goto Done
+      }
+    }
 
+    Set groupBy = ""
+    If $IsObject(req) Set groupBy = req.%Get("group_by")
+    If $IsObject(groupBy) {
+      If 'groupBy.%IsA("%DynamicArray") {
+        Do ..WriteError(400, "invalid_request", "group_by invalido")
+        Goto Done
+      }
+    }
+    Set maxGroupBy = 0
+    If $IsObject(limits) Set maxGroupBy = +limits.%Get("max_group_by")
+    If $IsObject(groupBy) {
+      If (maxGroupBy > 0), (groupBy.%Size() > maxGroupBy) {
+        Do ..WriteError(400, "invalid_request", "group_by excede max_group_by")
+        Goto Done
+      }
+    }
+    Set sc = ..ValidateGroupBy(groupBy, kpi)
+    If $$$ISERR(sc) Goto Done
+
+    Set filters = ""
+    If $IsObject(req) Set filters = req.%Get("filters")
+    If $IsObject(filters) {
+      If 'filters.%IsA("%DynamicArray") {
+        Do ..WriteError(400, "invalid_request", "filters invalidos")
+        Goto Done
+      }
+    }
+    Set sc = ..ValidateFilters(filters, kpi, dimsCfg)
+    If $$$ISERR(sc) Goto Done
+
+    Set options = ""
+    If $IsObject(req) Set options = req.%Get("options")
     Set limit = 200
-    Set mdx = ..BuildMdx(mdxTemplate, fromYMD, toYMD, "", "", limit)
+    If $IsObject(limits) {
+      Set limitDefault = limits.%Get("max_rows_default")
+      If limitDefault'="" Set limit = limitDefault
+    }
+    If $IsObject(options) {
+      Set limitVal = options.%Get("limit")
+      If limitVal'="" Set limit = limitVal
+    }
+    Set maxRowsHard = 0
+    If $IsObject(limits) Set maxRowsHard = +limits.%Get("max_rows_hard")
+    If (maxRowsHard > 0) {
+      If (limit > maxRowsHard) {
+        Do ..WriteError(400, "invalid_request", "limit excede max_rows_hard")
+        Goto Done
+      }
+    }
+
+    Set mdxTemplates = kpi.%Get("mdx_templates")
+    Set templateId = ""
+    If $IsObject(mdxTemplates) Set templateId = mdxTemplates.%Get(grain)
+    If templateId = "" {
+      Do ..WriteError(500, "template_missing", "template no configurado para grain")
+      Goto Done
+    }
+
+    Set templatesMap = ""
+    If $IsObject(templatesCfg) Set templatesMap = templatesCfg.%Get("templates")
+    Set template = ""
+    If $IsObject(templatesMap) Set template = templatesMap.%Get(templateId)
+    If '$IsObject(template) {
+      Do ..WriteError(500, "template_missing", "template no encontrado")
+      Goto Done
+    }
+
+    Set mdxTemplate = ""
+    If $IsObject(template) Set mdxTemplate = template.%Get("mdx")
+    If $IsObject(mdxTemplate) Set mdxTemplate = ""
+    If mdxTemplate = "" {
+      Do ..WriteError(500, "mdx_build_error", "template mdx vacio")
+      Goto Done
+    }
+
+    Set mdx = ..BuildMdx(mdxTemplate, fromYMD, toYMD, groupBy, filters, limit)
     If mdx = "" {
       Do ..WriteError(500, "mdx_build_error", "no se pudo construir mdx")
       Goto Done
     }
 
+    Set biEndpoint = ""
+    If $IsObject(template) Set biEndpoint = template.%Get("bi_rest_endpoint")
+    If biEndpoint = "" {
+      Do ..WriteError(500, "bi_endpoint_missing", "bi_rest_endpoint requerido")
+      Goto Done
+    }
+    Set templateJson = "{""bi_rest_endpoint"":"""_..JsonEscape(biEndpoint)_"""}"
     Set sc = ..ExecuteMdxRaw(templateJson, mdx, .biRaw, .biUrl)
     If $$$ISERR(sc) Goto Done
 
@@ -353,7 +545,7 @@ ClassMethod QueryCube() As %Status
     Set biEndpoint = ""
     If $IsObject(template) Set biEndpoint = template.%Get("bi_rest_endpoint")
     If $IsObject(biEndpoint) Set biEndpoint = ""
-    Set sc = ..ExecuteMdx(biEndpoint, mdx, .biResp)
+    Set sc = ..ExecuteMdx(biEndpoint, mdx, .biResp, .biRaw)
     If $$$ISERR(sc) Goto Done
 
     Do ..TraceWrite("normalize_response")
@@ -361,6 +553,9 @@ ClassMethod QueryCube() As %Status
     Set response = ##class(%DynamicObject).%New()
     Do response.%Set("template_id", templateId)
     Do response.%Set("rows", ..NormalizeMdxResponse(biResp, groupBy))
+    If $Get(^IRIS108.Config("DebugIncludeRaw")) = 1 {
+      Do response.%Set("bi_response_raw", $Get(biRaw))
+    }
     Do ..AddMetadata(.response, tStart)
     Do response.%Set("trace_id", traceId)
     Do ..TraceWrite("write_json")
@@ -390,7 +585,10 @@ ClassMethod DqStatus() As %Status
 
     Do ..Trace(traceId, "get_last_cutoff")
     Set sc = ..GetLastCutoff(.cutoff)
-    If $$$ISERR(sc) Goto Done
+    If $$$ISERR(sc) {
+      Do ..WriteError(500, "dq_query_failed", $SYSTEM.Status.GetErrorText(sc))
+      Goto Done
+    }
 
     Set response = ##class(%DynamicObject).%New()
     Do response.%Set("cutoff", cutoff)
@@ -582,6 +780,52 @@ ClassMethod Contains(list As %DynamicArray, value As %String) As %Boolean
   Quit found
 }
 
+ClassMethod ContainsValue(list As %RegisteredObject, value As %String) As %Boolean
+{
+  If '$IsObject(list) Quit 0
+  If list.%IsA("%DynamicArray") Quit ..Contains(list, value)
+  If list.%IsA("%DynamicObject") {
+    Set it = list.%GetIterator()
+    For {
+      If 'it.%GetNext(.k, .v) Quit
+      If v = value Quit 1
+    }
+  }
+  Quit 0
+}
+
+ClassMethod DebugValueToString(value) As %String
+{
+  Set result = ""
+  If '$IsObject(value) {
+    Set result = $Get(value)
+    Quit result
+  }
+  Try {
+    Set result = value.%ToJSON()
+  } Catch ex {
+    Set result = ""
+  }
+  Quit result
+}
+
+ClassMethod DebugTypeOf(value) As %String
+{
+  If '$IsObject(value) Quit "scalar"
+  If value.%IsA("%DynamicArray") Quit "DynamicArray"
+  If value.%IsA("%DynamicObject") Quit "DynamicObject"
+  Quit "object"
+}
+
+ClassMethod SetDebugHeader(name As %String, value As %String) As %Status
+{
+  Try {
+    If $IsObject(%response) Do %response.SetHeader(name, value)
+  } Catch ex {
+  }
+  Quit $$$OK
+}
+
 ClassMethod BuildMdx(template As %String, fromYMD As %String, toYMD As %String, groupBy As %DynamicArray, filters As %DynamicArray, limit As %Integer) As %String
 {
   Set dateSet = "[FechaFactura].[H1].[FKDAT].&["_fromYMD_"] : [FechaFactura].[H1].[FKDAT].&["_toYMD_"]"
@@ -689,7 +933,7 @@ ClassMethod EscapeKey(value As %String) As %String
   Quit $Replace(clean, "]", "]]")
 }
 
-ClassMethod ExecuteMdx(endpoint As %String, mdx As %String, ByRef responseObj As %DynamicObject) As %Status
+ClassMethod ExecuteMdx(endpoint As %String, mdx As %String, ByRef responseObj As %DynamicObject, ByRef raw As %String = "") As %Status
 {
   Set sc = $$$OK
   Set baseUrl = $Get(^IRIS108.Config("BIBaseUrl"))
@@ -737,7 +981,10 @@ ClassMethod ExecuteMdx(endpoint As %String, mdx As %String, ByRef responseObj As
     Goto Done
   }
 
-  Set raw = req.HttpResponse.Data.Read()
+  Set raw = ""
+  If $IsObject(req.HttpResponse.Data) {
+    Set raw = req.HttpResponse.Data.Read()
+  }
   Try {
     Set responseObj = ##class(%DynamicObject).%FromJSON(raw)
   } Catch ex {
@@ -836,12 +1083,13 @@ ClassMethod GetLastCutoff(ByRef cutoff As %String) As %Status
 {
   Set sc = $$$OK
   Set cutoff = ""
-  Set stmt = ##class(%SQL.Statement).%New()
-  Set sc = stmt.%Prepare("SELECT MAX(CutoffTs) FROM SISS.St.FactInvoice")
-  If $$$ISERR(sc) Goto Done
-  Set rset = stmt.%Execute()
-  If rset.%Next() {
-    Set cutoff = rset.%Get(1)
+  Try {
+    &sql(SELECT MAX(CutoffTs) INTO :cutoff FROM SISS_St.FactInvoice)
+    If SQLCODE'=0 {
+      Set sc = $SYSTEM.Status.Error(5001, "dq_query_failed: SQLCODE="_SQLCODE)
+    }
+  } Catch ex {
+    Set sc = $SYSTEM.Status.Error(5001, "dq_query_failed: "_ex.DisplayString())
   }
 Done
   Quit sc
@@ -858,8 +1106,18 @@ ClassMethod WriteJson(status As %Integer, response As %DynamicObject) As %Status
 ClassMethod WriteError(status As %Integer, code As %String, message As %String) As %Status
 {
   Set %response.Status = status
-  Set %response.ContentType = "text/plain"
-  Write code_": "_message,!
+  Set %response.ContentType = "application/json"
+  Try {
+    Do %response.SetHeader("X-Error-Code", code)
+    Do %response.SetHeader("X-Error-Message", message)
+  } Catch ex {
+  }
+  Set err = ##class(%DynamicObject).%New()
+  Do err.%Set("code", code)
+  Do err.%Set("message", message)
+  Set payload = ##class(%DynamicObject).%New()
+  Do payload.%Set("error", err)
+  Write payload.%ToJSON()
   Quit $$$OK
 }
 

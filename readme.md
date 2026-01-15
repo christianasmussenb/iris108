@@ -86,6 +86,9 @@ The solution exposes a small, **governed REST API** hosted **inside InterSystems
 - BI REST requiere credenciales desde globals: `^IRIS108.Config("BIUser")` y `^IRIS108.Config("BIPass")`.
 - BI REST usa `^IRIS108.Config("BIBaseUrl")` (ej.: `http://172.10.250.26/irisestandar/api/deepsee/v3/MLTEST`).
 - Debug controlado por flag `^IRIS108.Config("DebugWrite")` (solo para trazas temporales).
+- Flags adicionales de debug:
+  - `^IRIS108.Config("DebugIncludeRaw")` agrega `bi_response_raw` en `cube/query`.
+  - `^IRIS108.Config("DebugKpi")` agrega headers `X-Debug-*` en `kpi/query`.
 
 ## Configuración sin %SYS.YAML
 Si `%SYS.YAML` no está disponible, la carga de configuración usa globals:
@@ -99,6 +102,14 @@ Si `%SYS.YAML` no está disponible, la carga de configuración usa globals:
 - En este entorno, `%SYS.YAML` no está disponible; se usa JSON en globals como fallback.
 - El cubo operativo es `SISS`, y las medidas en MDX deben usar los nombres internos sin espacios (p.ej. `TotalFacturado`).
 - El editor de Actions exige HTTPS y `servers.url` bajo el mismo origen.
+- En versiones antiguas, algunos metodos de `%SQL.Statement/%ResultSet` no existen; usar SQL embebido para consultas simples.
+- `%DynamicObject` puede fallar en operaciones multidimensionales; evitar patrones que asuman arrays.
+- En errores 500 del Web Gateway, usar headers `X-Error-*` y flags de debug para diagnostico rapido.
+
+## Mejores practicas aplicadas (IRIS108)
+- JSON de error uniforme con headers `X-Error-Code` y `X-Error-Message`.
+- Flags de debug puntuales (no persistentes) para inspeccionar `cube/query` y validaciones de `kpi/query`.
+- Validaciones server-side basadas en `agent_limits`, `dimensions` y `kpi_registry`.
 ```
 # Implementación "codex-ready" para IRIS + ChatGPT Actions
 **codex-ready**: archivos de configuración + reglas de validación + mapeos KPI→(cubo/MDX template) + checklist de implementación en IRIS + notas exactas para configurar Actions con **API Key en el editor** (sin meter la key en el OpenAPI). Todo está alineado con lo documentado por **OpenAI Actions** y **InterSystems IRIS REST + BI REST (MDXExecute/PivotExecute)**. ([Plataforma OpenAI][1])
@@ -119,7 +130,7 @@ Si `%SYS.YAML` no está disponible, la carga de configuración usa globals:
 ```yaml
 version: "1.0.0"
 api:
-  base_path: "/api/gpt/v1"
+  base_path: "/csp/iris108"
   auth:
     header_name: "X-API-Key"
 
@@ -275,17 +286,17 @@ templates:
 ```md
 # Endpoint Behavior
 
-## GET /api/gpt/v1/capabilities
+## GET /csp/iris108/capabilities
 - Read config/*.yaml and return:
   - kpis list, cubes list, limits
   - correlation_id
 
-## POST /api/gpt/v1/kpi/explain
+## POST /csp/iris108/kpi/explain
 - Validate X-API-Key
 - Validate kpi_id exists
 - Return definition/formula/source/caveats from registry
 
-## POST /api/gpt/v1/kpi/query
+## POST /csp/iris108/kpi/query
 - Validate X-API-Key
 - Validate request vs Validation Rules
 - Resolve mdx_template_id = kpi_registry[kpi_id].mdx_templates[time.grain]
@@ -294,14 +305,14 @@ templates:
   - POST {bi_webapp_base}/Data/MDXExecute   (documented)
 - Normalize BI response into rows/totals + metadata + correlation_id
 
-## POST /api/gpt/v1/cube/query
+## POST /csp/iris108/cube/query
 - Validate X-API-Key
 - Validate template_id exists + params schema
 - Execute BI REST call:
   - POST {bi_webapp_base}/Data/MDXExecute or /Data/PivotExecute (template-defined)
 - Return columns/rows + metadata + correlation_id
 
-## POST /api/gpt/v1/dq/status
+## POST /csp/iris108/dq/status
 - Validate X-API-Key
 - Return last cutoff + completeness + issues from your DQ table (not BI)
 ```
@@ -320,7 +331,7 @@ info:
   title: IRIS Data Agent API
   version: 1.0.0
 servers:
-  - url: https://<TU-DOMINIO>/api/gpt/v1
+  - url: https://<TU-DOMINIO>/csp/iris108
 
 components:
   securitySchemes:
@@ -429,6 +440,68 @@ paths:
       responses:
         "200": { description: OK }
 ```
+
+---
+
+## Pruebas rapidas (curl)
+
+Nota: la API key se obtiene de `^IRIS108.Config("ApiKey")` en el namespace `MLTEST`.
+
+### Ping
+```bash
+curl -i \
+  http://172.10.250.26/irisestandar/csp/iris108/ping
+```
+
+### Capabilities
+```bash
+curl -i \
+  -H 'X-API-Key: MI_API_KEY_123' \
+  http://172.10.250.26/irisestandar/csp/iris108/capabilities
+```
+
+### KPI Query (fact_count)
+```bash
+curl -i \
+  -H 'X-API-Key: MI_API_KEY_123' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "kpi_id": "fact_count",
+    "time": { "from": "20160101", "to": "20160630", "grain": "day" }
+  }' \
+  http://172.10.250.26/irisestandar/csp/iris108/kpi/query
+```
+
+### Cube Query (template)
+```bash
+curl -i \
+  -H 'X-API-Key: MI_API_KEY_123' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "template_id": "FACTINV_FACT_COUNT_BY_DAY",
+    "params": {
+      "from": "20160101",
+      "to": "20160630",
+      "group_by": [],
+      "filters": [],
+      "limit": 200
+    }
+  }' \
+  http://172.10.250.26/irisestandar/csp/iris108/cube/query
+```
+
+### DQ Status
+```bash
+curl -i \
+  -H 'X-API-Key: MI_API_KEY_123' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "subject": "fact_invoice",
+    "time": { "from": "20160101", "to": "20160630" }
+  }' \
+  http://172.10.250.26/irisestandar/csp/iris108/dq/status
+```
+Nota: si `MAX(CutoffTs)` devuelve NULL, el campo `cutoff` saldra vacio.
 
 ---
 

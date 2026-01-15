@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "api": {
-    "base_path": "/api/gpt/v1",
+    "base_path": "/csp/iris108",
     "auth": {
       "header_name": "X-API-Key"
     }
