@@ -198,13 +198,23 @@ Done
 
 ClassMethod QueryKpi() As %Status
 {
+  Set tStart = $ZTIMESTAMP
+  Set traceId = ..StartTrace("QueryKpi")
   Set sc = $$$OK
   Try {
+    Do ..Trace(traceId, "require_api_key")
     Set sc = ..RequireApiKey()
-    If $$$ISERR(sc) Goto Done
+    If $$$ISERR(sc) {
+      Do ..Trace(traceId, "require_api_key:fail")
+      Goto Done
+    }
 
+    Do ..Trace(traceId, "read_json_body")
     Set sc = ..ReadJsonBody(.req)
-    If $$$ISERR(sc) Goto Done
+    If $$$ISERR(sc) {
+      Do ..Trace(traceId, "read_json_body:fail")
+      Goto Done
+    }
 
     Set kpiId = ""
     If $IsObject(req) Set kpiId = req.%Get("kpi_id")
@@ -212,6 +222,7 @@ ClassMethod QueryKpi() As %Status
       Do ..WriteError(400, "invalid_request", "kpi_id requerido")
       Goto Done
     }
+    Do ..Trace(traceId, "kpi_id:"_kpiId)
 
     Set timeObj = ""
     If $IsObject(req) Set timeObj = req.%Get("time")
@@ -271,17 +282,22 @@ ClassMethod QueryKpi() As %Status
 
     Set allowedGrains = kpi.%Get("allowed_grains")
     If $IsObject(allowedGrains) {
-      If ' ..ContainsValue(allowedGrains, grain) {
-        If $Get(^IRIS108.Config("DebugKpi")) = 1 {
-          Do ..SetDebugHeader("X-Debug-Grain", grain)
-          Do ..SetDebugHeader("X-Debug-KpiAllowed", ..DebugValueToString(allowedGrains))
-          Do ..SetDebugHeader("X-Debug-KpiAllowedType", ..DebugTypeOf(allowedGrains))
-        }
+      Set allowedOk = ..ContainsValue(allowedGrains, grain)
+      If 'allowedOk {
+        Set json = ..DebugValueToString(allowedGrains)
+        If json [ (""""_grain_"""") Set allowedOk = 1
+      }
+      If 'allowedOk {
+        Do ..SetDebugHeader("X-Debug-Grain", grain)
+        Do ..SetDebugHeader("X-Debug-KpiAllowed", ..DebugValueToString(allowedGrains))
+        Do ..SetDebugHeader("X-Debug-KpiAllowedType", ..DebugTypeOf(allowedGrains))
         Do ..WriteError(400, "invalid_request", "time.grain no permitido")
         Goto Done
       }
     } Else {
       If (allowedGrains'="")&(allowedGrains'=grain) {
+        // permitido
+      } ElseIf (allowedGrains'="") {
         If $Get(^IRIS108.Config("DebugKpi")) = 1 {
           Do ..SetDebugHeader("X-Debug-Grain", grain)
           Do ..SetDebugHeader("X-Debug-KpiAllowed", allowedGrains)
@@ -297,17 +313,22 @@ ClassMethod QueryKpi() As %Status
     Set allowedGlobal = ""
     If $IsObject(limits) Set allowedGlobal = limits.%Get("allowed_grains")
     If $IsObject(allowedGlobal) {
-      If ' ..ContainsValue(allowedGlobal, grain) {
-        If $Get(^IRIS108.Config("DebugKpi")) = 1 {
-          Do ..SetDebugHeader("X-Debug-Grain", grain)
-          Do ..SetDebugHeader("X-Debug-GlobalAllowed", ..DebugValueToString(allowedGlobal))
-          Do ..SetDebugHeader("X-Debug-GlobalAllowedType", ..DebugTypeOf(allowedGlobal))
-        }
+      Set allowedGlobalOk = ..ContainsValue(allowedGlobal, grain)
+      If 'allowedGlobalOk {
+        Set json = ..DebugValueToString(allowedGlobal)
+        If json [ (""""_grain_"""") Set allowedGlobalOk = 1
+      }
+      If 'allowedGlobalOk {
+        Do ..SetDebugHeader("X-Debug-Grain", grain)
+        Do ..SetDebugHeader("X-Debug-GlobalAllowed", ..DebugValueToString(allowedGlobal))
+        Do ..SetDebugHeader("X-Debug-GlobalAllowedType", ..DebugTypeOf(allowedGlobal))
         Do ..WriteError(400, "invalid_request", "time.grain no permitido")
         Goto Done
       }
     } Else {
       If (allowedGlobal'="")&(allowedGlobal'=grain) {
+        // permitido
+      } ElseIf (allowedGlobal'="") {
         If $Get(^IRIS108.Config("DebugKpi")) = 1 {
           Do ..SetDebugHeader("X-Debug-Grain", grain)
           Do ..SetDebugHeader("X-Debug-GlobalAllowed", allowedGlobal)
@@ -423,18 +444,22 @@ ClassMethod QueryKpi() As %Status
       Do ..WriteError(500, "bi_endpoint_missing", "bi_rest_endpoint requerido")
       Goto Done
     }
-    Set templateJson = "{""bi_rest_endpoint"":"""_..JsonEscape(biEndpoint)_"""}"
-    Set sc = ..ExecuteMdxRaw(templateJson, mdx, .biRaw, .biUrl)
+    Set sc = ..ExecuteMdx(biEndpoint, mdx, .biResp, .biRaw)
     If $$$ISERR(sc) Goto Done
 
     Set response = ##class(%DynamicObject).%New()
     Do response.%Set("kpi_id", kpiId)
     Do response.%Set("template_id", templateId)
-    Do response.%Set("bi_url", $Get(biUrl))
-    Do response.%Set("mdx", mdx)
-    Do response.%Set("bi_response_raw", $Get(biRaw))
+    Do response.%Set("rows", ..NormalizeMdxResponse(biResp, groupBy))
+    If $Get(^IRIS108.Config("DebugIncludeRaw")) = 1 {
+      Do response.%Set("bi_response_raw", $Get(biRaw))
+      Do response.%Set("mdx", mdx)
+    }
+    Do ..AddMetadata(.response, tStart)
+    Do response.%Set("trace_id", traceId)
     Do ..WriteJson(200, response)
   } Catch ex {
+    Do ..Trace(traceId, "exception:"_ex.DisplayString())
     Do ..WriteError(500, "internal_error", ex.DisplayString())
   }
 Done
@@ -767,15 +792,36 @@ Done
 ClassMethod Contains(list As %DynamicArray, value As %String) As %Boolean
 {
   If '$IsObject(list) Quit 0
-  Set i = 0
   Set found = 0
-  For {
-    Set i = i + 1
-    If i > list.%Size() Quit
-    If list.%Get(i) = value {
-      Set found = 1
-      Quit
+  Try {
+    Set size = list.%Size()
+    Set i = 0
+    For {
+      Set i = i + 1
+      If i > size Quit
+      If list.%Get(i) = value {
+        Set found = 1
+        Quit
+      }
     }
+    // fallback por si el array es 0-based en esta version
+    Set i = -1
+    For {
+      Set i = i + 1
+      If i >= size Quit
+      If list.%Get(i) = value {
+        Set found = 1
+        Quit
+      }
+    }
+  } Catch ex {
+  }
+  Try {
+    Set json = list.%ToJSON()
+    If json [ """"_value_"""" {
+      Set found = 1
+    }
+  } Catch ex2 {
   }
   Quit found
 }
@@ -783,15 +829,28 @@ ClassMethod Contains(list As %DynamicArray, value As %String) As %Boolean
 ClassMethod ContainsValue(list As %RegisteredObject, value As %String) As %Boolean
 {
   If '$IsObject(list) Quit 0
-  If list.%IsA("%DynamicArray") Quit ..Contains(list, value)
+  Set found = 0
+  Try {
+    If list.%ToJSON() [ (""""_value_"""") {
+      Set found = 1
+    }
+  } Catch ex {
+  }
+  If list.%IsA("%DynamicArray") Quit (found! ..Contains(list, value))
   If list.%IsA("%DynamicObject") {
-    Set it = list.%GetIterator()
-    For {
-      If 'it.%GetNext(.k, .v) Quit
-      If v = value Quit 1
+    Try {
+      Set it = list.%GetIterator()
+      For {
+        If 'it.%GetNext(.k, .v) Quit
+        If v = value {
+          Set found = 1
+          Quit
+        }
+      }
+    } Catch ex2 {
     }
   }
-  Quit 0
+  Quit found
 }
 
 ClassMethod DebugValueToString(value) As %String
@@ -999,55 +1058,157 @@ ClassMethod NormalizeMdxResponse(biResp As %DynamicObject, groupBy As %DynamicAr
 {
   Set rows = ##class(%DynamicArray).%New()
   If '$IsObject(biResp) Quit rows
-  Set axes = biResp.%Get("Axes")
-  If '$IsObject(axes) Quit rows
-  Set axis0 = axes.%Get(1)
-  Set axis1 = axes.%Get(2)
-  If '$IsObject(axis0) Quit rows
-  If '$IsObject(axis1) Quit rows
-  Set measures = axis0.%Get("Tuples")
-  Set tuples = axis1.%Get("Tuples")
-  If '$IsObject(measures) Quit rows
-  If '$IsObject(tuples) Quit rows
-  Set mCount = measures.%Size()
-  If mCount < 1 Quit rows
+  Try {
+    Set result = biResp
+    If $IsObject(biResp.%Get("Result")) Set result = biResp.%Get("Result")
 
-  Set data = biResp.%Get("Data")
-  If '$IsObject(data) Quit rows
-
-  Set tCount = tuples.%Size()
-  Set i = 0
-  For {
-    Set i = i + 1
-    If i > tCount Quit
-    Set tuple = tuples.%Get(i)
-    Set members = tuple.%Get("Members")
-    If '$IsObject(members) Continue
-
-    Set row = ##class(%DynamicObject).%New()
-    Set member1 = members.%Get(1)
-    Set fecha = ""
-    If $IsObject(member1) Set fecha = $Get(member1.%Get("Caption"), $Get(member1.%Get("Name"), ""))
-    Do row.%Set("fecha", fecha)
-
-    If $IsObject(groupBy) {
-      Set j = 0
-      For {
-        Set j = j + 1
-        If j > groupBy.%Size() Quit
-        Set key = groupBy.%Get(j)
-        Set member = members.%Get(j + 1)
-        Set val = ""
-        If $IsObject(member) Set val = $Get(member.%Get("Caption"), $Get(member.%Get("Name"), ""))
-        Do row.%Set(key, val)
-      }
+    Set axes = result.%Get("Axes")
+    If '$IsObject(axes) Goto Done
+    If $Get(^IRIS108.Config("DebugIncludeRaw")) = 1 {
+      Do ..SetDebugHeader("X-Debug-Axes-Type", ..DebugTypeOf(axes))
     }
 
-    Set dataIndex = ((i - 1) * mCount) + 1
-    Do row.%Set("value", $Get(data.%Get(dataIndex), ""))
-    Do rows.%Push(row)
+    Set axisCols = ""
+    Set axisRows = ""
+    If axes.%IsA("%DynamicArray") {
+      Set axisCols = axes.%Get(1)
+      Set axisRows = axes.%Get(2)
+      If '$IsObject(axisCols) Set axisCols = axes.%Get(0)
+      If '$IsObject(axisRows) Set axisRows = axes.%Get(1)
+    } ElseIf axes.%IsA("%DynamicObject") {
+      Set axisCols = axes.%Get("Axis0")
+      If '$IsObject(axisCols) Set axisCols = axes.%Get("Axis_1")
+      Set axisRows = axes.%Get("Axis1")
+      If '$IsObject(axisRows) Set axisRows = axes.%Get("Axis_2")
+    }
+    If $Get(^IRIS108.Config("DebugIncludeRaw")) = 1 {
+      Do ..SetDebugHeader("X-Debug-AxisCols-Type", ..DebugTypeOf(axisCols))
+      Do ..SetDebugHeader("X-Debug-AxisRows-Type", ..DebugTypeOf(axisRows))
+    }
+    If '$IsObject(axisRows) Goto Done
+    If '$IsObject(axisCols) Goto Done
+
+    Set measures = axisCols.%Get("Tuples")
+    Set tuples = axisRows.%Get("Tuples")
+    If '$IsObject(measures) Goto Done
+    If '$IsObject(tuples) Goto Done
+    Set mCount = 0
+    Try {
+      Set mCount = measures.%Size()
+    } Catch exSize {
+      Set mCount = 0
+    }
+    If $Get(^IRIS108.Config("DebugIncludeRaw")) = 1 {
+      Set tSize = ""
+      Try { Set tSize = tuples.%Size() } Catch exSize2 { Set tSize = "" }
+      Do ..SetDebugHeader("X-Debug-Tuples-Size", tSize)
+      Do ..SetDebugHeader("X-Debug-Measures-Size", mCount)
+    }
+    If mCount < 1 Goto Done
+
+    Set data = result.%Get("Data")
+    If '$IsObject(data) Set data = result.%Get("CellData")
+    If '$IsObject(data) Goto Done
+
+    // Iterar tuplas y celdas con iteradores para evitar acceso multidimensional
+    Set tIter = tuples.%GetIterator()
+    Set dIter = data.%GetIterator()
+    Set cellIdx = 0
+    For {
+      If 'tIter.%GetNext(.tKey, .tuple) Quit
+      Set members = ""
+      If $IsObject(tuple) Set members = tuple.%Get("Members")
+      If '$IsObject(members) Continue
+
+      Set row = ##class(%DynamicObject).%New()
+      // iterar miembros (primer miembro = fecha, siguientes = group_by)
+      Set mIter = members.%GetIterator()
+      Set mIndex = 0
+      Set member1 = ""
+      If mIter.%GetNext(.mk, .memberObj) {
+        Set member1 = memberObj
+        Set mIndex = 1
+      }
+      Do row.%Set("fecha", ..MemberValue(member1))
+
+      If $IsObject(groupBy) {
+        Set jIter = groupBy.%GetIterator()
+        For {
+          If 'jIter.%GetNext(.jg, .key) Quit
+          Set member = ""
+          If mIter.%GetNext(.mk2, .memberObj2) {
+            Set member = memberObj2
+          }
+          Do row.%Set(key, ..MemberValue(member))
+        }
+      }
+
+      Set cellVal = ""
+      Set cOk = dIter.%GetNext(.cKey, .cell)
+      If cOk {
+        Try {
+          Set cellVal = ..CellValue(cell)
+        } Catch exCell {
+          Set cellVal = ""
+          If $Get(^IRIS108.Config("DebugIncludeRaw")) = 1 {
+            Do ..SetDebugHeader("X-Debug-Cell-Error", exCell.DisplayString())
+          }
+        }
+      }
+      Do row.%Set("value", cellVal)
+      Do rows.%Push(row)
+      Set cellIdx = cellIdx + 1
+    }
+  } Catch ex {
+    If $Get(^IRIS108.Config("DebugIncludeRaw")) = 1 {
+      Do ..SetDebugHeader("X-Debug-Norm-Error", ex.DisplayString())
+    }
   }
+Done
   Quit rows
+}
+
+ClassMethod GetAxis(axes As %RegisteredObject, key) As %DynamicObject
+{
+  If '$IsObject(axes) Quit ""
+  If axes.%IsA("%DynamicArray") {
+    Quit axes.%Get(key)
+  }
+  If axes.%IsA("%DynamicObject") {
+    Quit axes.%Get(key)
+  }
+  Quit ""
+}
+
+ClassMethod MemberValue(member As %DynamicObject) As %String
+{
+  If '$IsObject(member) Quit $Get(member)
+  Set val = ""
+  Try {
+    Set val = member.%Get("Caption")
+  } Catch ex1 {
+  }
+  If val="" {
+    Try { Set val = member.%Get("Name") } Catch ex2 {}
+  }
+  If val="" {
+    Try { Set val = member.%Get("DisplayName") } Catch ex3 {}
+  }
+  Quit val
+}
+
+ClassMethod CellValue(cell) As %String
+{
+  If '$IsObject(cell) Quit $Get(cell)
+  Set v = ""
+  Try { Set v = cell.%Get("ValueFormatted") } Catch exFmt {}
+  If v="" {
+    Try { Set v = cell.%Get("FmtValue") } Catch exFmt2 {}
+  }
+  If v="" {
+    Try { Set v = cell.%Get("Value") } Catch exVal {}
+  }
+  Quit v
 }
 
 ClassMethod AddMetadata(ByRef response As %DynamicObject, startTs As %TimeStamp) As %Status

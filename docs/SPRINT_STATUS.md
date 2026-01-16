@@ -22,13 +22,13 @@
 - `GET /csp/iris108/ping` OK.
 - `GET /csp/iris108/capabilities` OK (JSON estructurado).
 - `POST /csp/iris108/dq/status` OK (JSON; `cutoff` puede salir vacio si no hay dato).
-- `POST /csp/iris108/cube/query` OK (MDX valido en BI; `rows` aun vacio en normalizacion).
-- `POST /csp/iris108/kpi/query` con `time.grain=day` retorna 400 por validacion (pendiente ajuste).
+- `POST /csp/iris108/kpi/query` OK: filas con `fecha`+`value` normalizadas. Traza: `911A3058-4A1C-4D76-BAC0-DCCE047C0475` (fact_count 20160101–20160630).
+- `POST /csp/iris108/cube/query` OK: filas con `fecha`+`value` usando template `FACTINV_FACT_COUNT_BY_DAY`. Traza: `99FCBC21-1A62-4538-A30F-07F200FD9CA1` (fact_count 20160101–20160630).
 
 ## Problemas actuales
 - El endpoint `/api/mgmnt` no respondio (timeout en 30s) al intentar regenerar clases.
-- `cube/query` devuelve `rows: []` aunque el MDX en BI UI trae resultados; revisar normalizacion de respuesta BI.
-- `kpi/query` rechaza `time.grain=day` pese a estar en config; revisar parseo de `allowed_grains` y formato real de globals.
+- Pendiente: `/api/mgmnt` sigue sin responder para regenerar clases.
+- Revisar otros KPIs/plantillas con rango de prueba para confirmar normalizacion (solo validado fact_count/template FACTINV_FACT_COUNT_BY_DAY).
 
 ## Buenas practicas aplicadas
 - Configuracion sensible en globals; no hardcodear credenciales en codigo.
@@ -43,12 +43,9 @@
 1. Verificar conectividad y respuesta del endpoint `http://172.10.250.26/api/mgmnt/` desde el servidor donde corre IRIS.
 2. Reintentar `POST /api/mgmnt/v2/MLTEST/IRIS108` con `spec/swagger2.json`.
 3. Confirmar que se generen `IRIS108.disp`, `IRIS108.impl`, `IRIS108.spec` en `MLTEST`.
-4. Verificar datos reales en el cubo `SISS` para el rango y confirmar que `rows` no venga vacio.
-5. Corregir validacion de `time.grain` en `kpi/query` usando el formato real de globals.
-6. Normalizar respuesta de `kpi/query` (alinear con `spec/endpoint_behavior.md`).
-7. Ajustar normalizacion de `cube/query` en base al `bi_response_raw` real.
-8. Unificar `agent_limits.base_path` en globals a `/csp/iris108` (evitar desalineacion).
-9. Limpiar trazas si ya no se requieren (desactivar `DebugWrite`/debug flags en prod).
+4. Validar KPIs adicionales y templates restantes (rango 20160101–20160630) para confirmar normalizacion consistente.
+5. Unificar `agent_limits.base_path` en globals a `/csp/iris108` si no está ya alineado.
+6. Limpiar trazas (desactivar `DebugWrite`/debug flags en prod) tras cerrar pruebas.
 
 ## Plan de trabajo (siguiente sprint)
 1. Alinear configuraciones en globals con el repo (`agent_limits`, `kpi_registry`, `dimensions`, `cube_templates`).

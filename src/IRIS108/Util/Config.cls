@@ -78,4 +78,44 @@ ClassMethod ConfigPath(fileName As %String) As %String
   Quit root_"/"_fileName
 }
 
+/// Carga un archivo de config (YAML/JSON) y lo escribe en globals como JSON.
+/// Facilita alinear los globals `^IRIS108.ConfigData` con los archivos del repo.
+ClassMethod SyncFileToGlobals(fileName As %String) As %Status
+{
+  Set sc = $$$OK
+  Set config = ""
+  Set sc = ..Load(fileName, .config)
+  If $$$ISERR(sc) Quit sc
+
+  If '$IsObject(config) Quit $SYSTEM.Status.Error(5001, "Config vacia para "_fileName)
+  Try {
+    Set base = $Piece(fileName, ".", 1)
+    Set ^IRIS108.ConfigData(base, "json") = config.%ToJSON()
+  } Catch ex {
+    Set sc = $SYSTEM.Status.Error(5001, "No se pudo serializar "_fileName_": "_ex.DisplayString())
+  }
+  Quit sc
+}
+
+/// Sincroniza todos los archivos soportados (agent_limits, dimensions, kpi_registry, cube_templates) a globals.
+ClassMethod SyncAllToGlobals() As %Status
+{
+  Set files = ##class(%ListOfDataTypes).%New()
+  Do files.Insert("agent_limits.yaml")
+  Do files.Insert("dimensions.yaml")
+  Do files.Insert("kpi_registry.yaml")
+  Do files.Insert("cube_templates.yaml")
+
+  Set sc = $$$OK
+  Set i = files.Next("")
+  For {
+    If i = "" Quit
+    Set file = files.GetAt(i)
+    Set sc = ..SyncFileToGlobals(file)
+    If $$$ISERR(sc) Quit
+    Set i = files.Next(i)
+  }
+  Quit sc
+}
+
 }
