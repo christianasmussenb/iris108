@@ -3,7 +3,8 @@ info:
   title: IRIS Data Agent API
   version: 1.0.0
 servers:
-  - url: https://<TU-DOMINIO>/csp/iris108
+  # Usa la misma raíz/origen que el Custom GPT (sin puerto extra).
+  - url: https://172.10.250.26/irisestandar/csp/iris108
 
 components:
   securitySchemes:
@@ -11,6 +12,8 @@ components:
       type: apiKey
       in: header
       name: X-API-Key
+  # Placeholder requerido por el validador de Actions; agrega tus schemas aquí si los necesitas.
+  schemas: {}
 
 security:
   - ApiKeyAuth: []
