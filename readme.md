@@ -1,6 +1,19 @@
 ```md
 # IRIS Data Agent for ChatGPT (Custom GPT + Actions)
 
+> 📚 **Para documentación completa y guías detalladas, consulta la [Wiki del Proyecto](WIKI.md)**  
+> 🗺️ **¿No sabes por dónde empezar? Consulta la [Guía de Documentación](DOC_GUIDE.md)**
+
+## 🚀 Inicio Rápido
+
+**Documentación Disponible:**
+- 🗺️ [**DOC_GUIDE.md**](DOC_GUIDE.md) - Guía de navegación de documentación (¡empieza aquí si eres nuevo!)
+- 📖 [**WIKI.md**](WIKI.md) - Wiki completa con guías de instalación, configuración, API reference y troubleshooting
+- 📋 [**docs/SPRINT_STATUS.md**](docs/SPRINT_STATUS.md) - Estado actual del proyecto y resultados de pruebas
+- ✅ [**BUENAS_PRACTICAS_IRIS_COMBINADAS.md**](BUENAS_PRACTICAS_IRIS_COMBINADAS.md) - Guía completa de buenas prácticas para IRIS
+- 🔧 [**spec/validation_rules.md**](spec/validation_rules.md) - Reglas de validación server-side
+- 🌐 [**spec/openapi.yaml**](spec/openapi.yaml) - Especificación OpenAPI 3.1
+
 ## Overview
 This project implements a **natural-language data assistant** that allows business and technical users to query **InterSystems IRIS** data—specifically the **data architecture (raw/mart) and BI cubes/KPIs**—directly from the **ChatGPT interface** using a **Custom GPT** configured with **Actions**.
 
